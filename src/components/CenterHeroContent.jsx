@@ -1,98 +1,146 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function CenterHeroContent() {
+export default function CenterHeroContent({ isCanvasMode = true }) {
+  if (isCanvasMode) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center text-center select-none pointer-events-auto">
+        {/* Overline */}
+        <motion.span
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="text-[1.15cqi] font-semibold tracking-[0.22em] text-[#8c8f94] uppercase mb-[0.8cqi] whitespace-nowrap"
+        >
+          YOUR AI OUTFIT COMPANION
+        </motion.span>
+
+        {/* Main Headline */}
+        <motion.h1
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          className="font-extrabold text-[4.3cqi] tracking-[-0.035em] leading-[1.03] whitespace-nowrap"
+        >
+          <span className="block text-[#0a0a0a]">More Outfits.</span>
+          <span className="block text-[#4b5563] mt-[0.2cqi]">Same Wardrobe.</span>
+        </motion.h1>
+
+        {/* 3-Line Subtitle */}
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-[1.1cqi] text-[#5e6166] font-normal text-[1.4cqi] leading-[1.5] max-w-[34cqi] mx-auto"
+        >
+          <span className="block whitespace-nowrap">Upload your clothes, get AI-powered outfit combinations,</span>
+          <span className="block whitespace-nowrap">and discover new ways to express your style</span>
+          <span className="block whitespace-nowrap">without buying more.</span>
+        </motion.p>
+
+        {/* Action Buttons: Get Started → & See how it works */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-[1.6cqi] flex items-center justify-center gap-[1.8cqi]"
+        >
+          {/* Get Started Button */}
+          <motion.a
+            href="#get-started"
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            className="group relative inline-flex items-center gap-[0.7cqi] bg-[#0c0c0d] hover:bg-black text-white px-[2.2cqi] py-[0.85cqi] rounded-[0.6cqi] text-[1.35cqi] font-semibold tracking-tight shadow-[0_4px_14px_-2px_rgba(0,0,0,0.25)] hover:shadow-[0_8px_20px_-2px_rgba(0,0,0,0.35)] transition-all cursor-pointer whitespace-nowrap"
+          >
+            <span>Get Started</span>
+            <svg 
+              className="w-[1.2cqi] h-[1.2cqi] transition-transform duration-200 group-hover:translate-x-0.5" 
+              viewBox="0 0 16 16" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path 
+                d="M3 8H13M13 8L8.8 4M13 8L8.8 12" 
+                stroke="currentColor" 
+                strokeWidth="1.8" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+            </svg>
+          </motion.a>
+
+          {/* See how it works Underlined Link */}
+          <motion.a
+            href="#how-it-works"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="text-[1.35cqi] font-semibold text-[#111111] hover:text-black underline underline-offset-4 decoration-neutral-400 hover:decoration-black transition-colors px-[0.4cqi] py-[0.4cqi] flex items-center cursor-pointer whitespace-nowrap"
+          >
+            See how it works
+          </motion.a>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Mobile / fallback mode
   return (
-    <div className="flex flex-col items-center justify-center text-center select-none z-20 max-w-2xl mx-auto px-4 py-1">
-
-     
-
-      
-      
-
-      
-      <motion.h1
-        initial={{ opacity: 0, y: 20 }}
+    <div className="w-full flex flex-col items-center justify-center text-center select-none px-4 py-6">
+      {/* Overline */}
+      <motion.span
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="font-black text-[2.75rem] xs:text-[3.25rem] sm:text-6xl md:text-7xl lg:text-[5.25rem] xl:text-[6.25rem] tracking-[-0.04em] leading-[0.98] text-[#0a0a0a]"
+        transition={{ duration: 0.5 }}
+        className="text-[11px] font-semibold tracking-[0.22em] text-[#8c8f94] uppercase mb-2.5"
       >
-        <span className="block">Closet full.</span>
-        <span className="block mt-0.5 sm:mt-1.5">
-          Outfit <span className="text-[#aff03b]">zero.</span>
-        </span>
+        YOUR AI OUTFIT COMPANION
+      </motion.span>
+
+      {/* Main Headline */}
+      <motion.h1
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.08 }}
+        className="font-extrabold text-[2.5rem] tracking-[-0.035em] leading-[1.05]"
+      >
+        <span className="block text-[#0a0a0a]">More Outfits.</span>
+        <span className="block text-[#4b5563] mt-1">Same Wardrobe.</span>
       </motion.h1>
 
-      {/* Subtitle */}
+      {/* 3-Line Subtitle */}
       <motion.p
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-2.5 sm:mt-4 text-neutral-600 font-medium text-[13px] xs:text-sm sm:text-base md:text-[17px] leading-snug sm:leading-relaxed max-w-lg mx-auto"
+        transition={{ duration: 0.6, delay: 0.16 }}
+        className="mt-3.5 text-[#5e6166] font-normal text-sm leading-relaxed max-w-sm mx-auto"
       >
-        <span className="block sm:inline">Get outfit ideas for your mood,</span>{' '}
-        <span className="block sm:inline">occasion and style.</span>
-        <br className="hidden sm:inline" />{' '}
-        <span className="block sm:inline mt-0.5 sm:mt-0">Less overthinking. More fits.</span>
+        <span>Upload your clothes, get AI-powered outfit combinations, and discover new ways to express your style without buying more.</span>
       </motion.p>
 
-      {/* Main CTA Button: Mobile Slanted Parallelogram vs Desktop Pill */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-5 sm:mt-7"
+        transition={{ duration: 0.6, delay: 0.24 }}
+        className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xs"
       >
-        {/* Mobile Exact Slanted Parallelogram Button (< sm) */}
-        <motion.a
-          href="#find-my-fit"
-          whileTap={{ scale: 0.96 }}
-          className="sm:hidden relative inline-flex items-center justify-center gap-3 bg-[#0a0a0a] text-white px-9 py-3 text-base font-bold tracking-tight shadow-lg active:bg-black cursor-pointer"
-          style={{
-            clipPath: 'polygon(24px 0%, 100% 0%, calc(100% - 24px) 100%, 0% 100%)'
-          }}
+        <a
+          href="#get-started"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#0c0c0d] hover:bg-black text-white px-7 py-3 rounded-lg text-sm font-semibold tracking-tight shadow-md transition-all active:scale-95"
         >
-          <span className="ml-2 font-semibold">Find My Fit</span>
-          <svg 
-            className="w-5 h-5 text-white" 
-            viewBox="0 0 20 20" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path 
-              d="M3.5 10H16.5M16.5 10L11.5 5M16.5 10L11.5 15" 
-              stroke="currentColor" 
-              strokeWidth="2.2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-            />
+          <span>Get Started</span>
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8H13M13 8L8.8 4M13 8L8.8 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        </motion.a>
+        </a>
 
-        {/* Desktop Untouched Rounded Pill Button (sm+) */}
-        <motion.a
-          href="#find-my-fit"
-          whileHover={{ scale: 1.04, y: -2 }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          className="hidden sm:inline-flex group relative items-center gap-3 bg-[#0a0a0a] text-white px-8 sm:px-9 py-3.5 sm:py-4 rounded-full text-base sm:text-[17px] font-semibold tracking-tight shadow-[0_14px_30px_-6px_rgba(0,0,0,0.35)] hover:shadow-[0_20px_35px_-5px_rgba(0,0,0,0.45)] transition-all cursor-pointer"
+        <a
+          href="#how-it-works"
+          className="text-sm font-semibold text-[#111111] hover:text-black underline underline-offset-4 decoration-neutral-400 py-2"
         >
-          <span>Find My Fit</span>
-          <svg 
-            className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1.5" 
-            viewBox="0 0 20 20" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path 
-              d="M4.16666 10H15.8333M15.8333 10L10.8333 5M15.8333 10L10.8333 15" 
-              stroke="currentColor" 
-              strokeWidth="2.2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-          </svg>
-        </motion.a>
+          See how it works
+        </a>
       </motion.div>
     </div>
   );
