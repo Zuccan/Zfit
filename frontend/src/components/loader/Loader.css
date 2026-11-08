@@ -1,0 +1,188 @@
+/* ==========================================================================
+   ZFITs 3D Interactive Hanging Fashion Tag Loader
+   Editorial Luxury Studio Aesthetic
+   ========================================================================== */
+
+.zfits-3d-loader-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 99999;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background: radial-gradient(ellipse 90% 80% at 50% 30%, #f7f6f3 0%, #ece9e3 50%, #ded9d0 100%);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  pointer-events: auto;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 3D WebGL Canvas Layer */
+.zfits-3d-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+/* Header Brand Bar */
+.loader-header {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2.2rem 3rem;
+  pointer-events: none;
+}
+
+.loader-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.loader-brand-title {
+  font-family: 'Cinzel', 'Playfair Display', -apple-system, BlinkMacSystemFont, "Segoe UI", serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: #121214;
+  text-transform: uppercase;
+}
+
+.loader-brand-sub {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: #72706b;
+  text-transform: uppercase;
+}
+
+/* Minimalist Skip Button */
+.loader-skip-btn {
+  pointer-events: auto;
+  background: rgba(18, 18, 20, 0.05);
+  border: 1px solid rgba(18, 18, 20, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #2b2a27;
+  padding: 0.55rem 1.15rem;
+  border-radius: 9999px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.loader-skip-btn:hover {
+  background: #121214;
+  color: #ffffff;
+  border-color: #121214;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.loader-skip-btn:active {
+  transform: translateY(0);
+}
+
+/* Footer Interaction Cue */
+.loader-footer {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 2.5rem;
+  pointer-events: none;
+}
+
+.loader-hint {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: #615f5a;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: all 0.25s ease;
+}
+
+.loader-hint.tension-high {
+  color: #d43856;
+  transform: scale(1.06);
+  letter-spacing: 0.28em;
+}
+
+.loader-hint-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.6;
+}
+
+.loader-pull-indicator {
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8c8982;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.loader-pull-indicator.tension-high {
+  color: #d43856;
+  transform: translateY(3px);
+}
+
+/* Responsive adjustments for mobile viewports */
+@media (max-width: 768px) {
+  .loader-header {
+    padding: 1.5rem 1.5rem;
+  }
+
+  .loader-brand-title {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+  }
+
+  .loader-brand-sub {
+    display: none;
+  }
+
+  .loader-skip-btn {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.65rem;
+  }
+
+  .loader-footer {
+    padding-bottom: 1.8rem;
+  }
+
+  .loader-hint {
+    font-size: 0.64rem;
+    letter-spacing: 0.18em;
+  }
+}
