@@ -24,7 +24,7 @@ export const LoadingProgress = memo(function LoadingProgress({
       {/* Editorial look index and active outfit info */}
       <div className="zfits-progress-meta">
         <span className="zfits-meta-tag">{currentScene.code || `LOOK 0${sceneIndex + 1} // 0${totalScenes}`}</span>
-        <span className="zfits-meta-sep">•</span>
+        <span className="zfits-meta-sep">.</span>
         <div className="zfits-meta-title-viewport">
           <AnimatePresence mode="wait">
             <motion.span

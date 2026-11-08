@@ -66,7 +66,8 @@ export function Home({ onReplayLoader }) {
         <div className="nav-actions">
           <button type="button" className="replay-btn" onClick={onReplayLoader}>
             <span className="replay-icon">↺</span>
-            <span>REPLAY CINEMATIC LOADER</span>
+            <span className="replay-text-desktop">REPLAY CINEMATIC LOADER</span>
+            <span className="replay-text-mobile">REPLAY</span>
           </button>
         </div>
       </nav>

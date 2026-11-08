@@ -31,27 +31,25 @@ export function ZfitsLoader({
   const animationControlsRef = useRef(null);
   const exitTimeoutRef = useRef(null);
 
-  // 1. Hardware Asset Preload & Decode
+  // 1. Hardware Asset Preload & Decode with Mobile-Optimized Instant-Start
   useEffect(() => {
     let isCancelled = false;
 
+    // Safety fallback: Never keep loader waiting on slower mobile networks
+    const safetyTimer = setTimeout(() => {
+      if (!isCancelled) setIsAssetsReady(true);
+    }, 450);
+
     async function preloadAssets() {
       try {
-        const assetsToPreload = [];
-        scenes.forEach((scene) => {
-          assetsToPreload.push(scene.characterSrc);
-          assetsToPreload.push(scene.outfitSrc);
-        });
-
-        const decodePromises = assetsToPreload.map((src) => {
+        // Eagerly decode only the first active scene (char1 + shirt1) for immediate start
+        const firstLookImgs = [scenes[0].characterSrc, scenes[0].outfitSrc];
+        const initialPromises = firstLookImgs.map((src) => {
           return new Promise((resolve) => {
             const img = new Image();
             img.src = src;
             if ('decode' in img) {
-              img.decode().then(resolve).catch(() => {
-                img.onload = resolve;
-                img.onerror = resolve;
-              });
+              img.decode().then(resolve).catch(resolve);
             } else {
               img.onload = resolve;
               img.onerror = resolve;
@@ -60,16 +58,28 @@ export function ZfitsLoader({
         });
 
         await Promise.all([
-          ...decodePromises,
+          ...initialPromises,
           document.fonts ? document.fonts.ready : Promise.resolve(),
         ]);
 
         if (!isCancelled) {
+          clearTimeout(safetyTimer);
           setIsAssetsReady(true);
+        }
+
+        // Non-blocking background caching of subsequent outfits
+        for (let i = 1; i < scenes.length; i++) {
+          const imgC = new Image();
+          imgC.src = scenes[i].characterSrc;
+          const imgO = new Image();
+          imgO.src = scenes[i].outfitSrc;
         }
       } catch (err) {
         console.warn('Preload fallback:', err);
-        if (!isCancelled) setIsAssetsReady(true);
+        if (!isCancelled) {
+          clearTimeout(safetyTimer);
+          setIsAssetsReady(true);
+        }
       }
     }
 
@@ -77,6 +87,7 @@ export function ZfitsLoader({
 
     return () => {
       isCancelled = true;
+      clearTimeout(safetyTimer);
       if (animationControlsRef.current) animationControlsRef.current.stop();
       if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current);
     };

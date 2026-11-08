@@ -1,11 +1,22 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 /* Minimal baseline - strictly non-intrusive */
 :root {
   color-scheme: dark;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
   background-color: #0c0c0e;
   color: #ffffff;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -14,5 +25,9 @@ body {
 }
 
 #root {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
