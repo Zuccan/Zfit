@@ -11,6 +11,10 @@ dist/
 .env
 .env*.local
 
+# Backups
+*_backup.png
+*_orig.png
+
 # System & Editor files
 .DS_Store
 Thumbs.db

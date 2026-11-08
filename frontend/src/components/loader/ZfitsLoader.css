@@ -1,0 +1,504 @@
+/* ==========================================================================
+   ZFITS VIRTUAL FASHION STUDIO LOADER
+   High-performance GPU-accelerated composition.
+   All styles are strictly scoped under .zfits-loader-root to protect the rest
+   of the application.
+   ========================================================================== */
+
+/* 1. Bespoke Editorial Typography */
+@font-face {
+  font-family: 'Haas Regular';
+  src: url('../../assets/fonts/haas-regular.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2. Isolated Full-Viewport Container */
+.zfits-loader-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 9999;
+  background-color: #0c0c0e;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 3. LAYER 6 (Top): Subtle AI Studio Editorial Header HUD */
+.zfits-loader-root .zfits-loader-hud {
+  position: fixed;
+  top: clamp(22px, 3.6vh, 44px);
+  left: clamp(28px, 4.5vw, 64px);
+  right: clamp(28px, 4.5vw, 64px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.zfits-loader-root .zfits-hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zfits-loader-root .zfits-hud-title {
+  font-family: 'Haas Regular', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.22em;
+  color: #FFFFFF;
+}
+
+.zfits-loader-root .zfits-hud-slash {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.82rem;
+}
+
+.zfits-loader-root .zfits-hud-subtitle {
+  font-family: 'Haas Regular', system-ui, sans-serif;
+  font-size: 0.70rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+
+.zfits-loader-root .zfits-hud-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zfits-loader-root .zfits-hud-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+  animation: zfitsDotGlow 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes zfitsDotGlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.zfits-loader-root .zfits-hud-state {
+  font-family: 'Haas Regular', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 4. LAYER 1 & 2: Full-Screen Environmental Studio Canvas & Lighting */
+.zfits-loader-root .zfits-bg-layer-root {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.zfits-loader-root .zfits-bg-gradient {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  will-change: opacity;
+}
+
+.zfits-loader-root .zfits-vignette-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  transition: box-shadow 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 5. VIRTUAL STUDIO STAGE (Layers 3, 4 & 5) */
+.zfits-loader-root .zfits-stage-chamber {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* LAYER 3: Dual-Layer Oversized Blurred Active Garment */
+.zfits-loader-root .zfits-garment-chamber {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(520px, 52vw, 860px);
+  height: clamp(460px, 58vh, 780px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.zfits-loader-root .zfits-garment-chamber.atmospheric {
+  z-index: 2;
+}
+
+.zfits-loader-root .zfits-garment-chamber.recognizable {
+  z-index: 3;
+}
+
+.zfits-loader-root .zfits-garment-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: opacity;
+}
+
+.zfits-loader-root .zfits-blurred-garment {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform-origin: center center;
+}
+
+/* LAYER 5: Studio Floor Light Reflection */
+.zfits-loader-root .zfits-floor-spotlight {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(480px, 55vw, 850px);
+  height: clamp(90px, 16vh, 180px);
+  pointer-events: none;
+  z-index: 8;
+  transition: background 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* LAYER 5: Studio Ground Contact Shadow under Sneakers */
+.zfits-loader-root .zfits-sneaker-shadow {
+  position: absolute;
+  bottom: clamp(24px, 6.8vh, 60px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(220px, 22vw, 340px);
+  height: 22px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.25) 50%, transparent 75%);
+  filter: blur(5px);
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* LAYER 4: Sharp Foreground Character (HORIZONTALLY CENTERED RELATIVE TO ACTUAL VIEWPORT) */
+.zfits-loader-root .zfits-character-box {
+  position: absolute;
+  bottom: clamp(24px, 6.8vh, 60px);
+  left: 50%;
+  transform: translateX(-50%);
+  height: clamp(540px, 88vh, 960px);
+  aspect-ratio: 939 / 1676;
+  max-width: 90vw;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.zfits-loader-root .zfits-character-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  will-change: opacity;
+  backface-visibility: hidden;
+}
+
+/* 6. LAYER 6 (Bottom-Right): Pinned Progress Dock & Active Look Info */
+.zfits-loader-root .zfits-progress-dock {
+  position: fixed;
+  right: clamp(24px, 3.4vw, 56px);
+  bottom: clamp(32px, 8.32vh, 80px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  user-select: none;
+  z-index: 50;
+  min-width: clamp(200px, 16vw, 300px);
+}
+
+.zfits-loader-root .zfits-progress-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  opacity: 0.65;
+}
+
+.zfits-loader-root .zfits-meta-tag {
+  font-family: 'Haas Regular', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: #FFFFFF;
+  text-transform: uppercase;
+}
+
+.zfits-loader-root .zfits-meta-sep {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.6rem;
+}
+
+.zfits-loader-root .zfits-meta-title-viewport {
+  display: inline-flex;
+  min-height: 1.1em;
+}
+
+.zfits-loader-root .zfits-meta-title {
+  font-family: 'Haas Regular', system-ui, sans-serif;
+  font-size: 0.70rem;
+  letter-spacing: 0.14em;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.zfits-loader-root .zfits-percentage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  color: #FFFFFF;
+  font-family: 'Haas Regular', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(64px, 10.59vh, 120px);
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.35);
+}
+
+.zfits-loader-root .zfits-numeral-digits {
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+  letter-spacing: -0.045em;
+}
+
+.zfits-loader-root .zfits-numeral-percent {
+  font-size: clamp(38px, 6.2vh, 72px);
+  font-weight: 600;
+  margin-left: 2px;
+  opacity: 0.98;
+}
+
+/* 7. Responsive Adjustments */
+@supports (height: 100dvh) {
+  .zfits-loader-root {
+    height: 100dvh;
+  }
+  .zfits-loader-root .zfits-stage-chamber {
+    height: 100dvh;
+  }
+}
+
+@media (max-width: 1024px) {
+  .zfits-loader-root .zfits-character-box {
+    height: 82vh;
+  }
+  .zfits-loader-root .zfits-garment-chamber {
+    width: 65vw;
+    height: 55vh;
+  }
+}
+
+/* Tablet & Mobile Breakpoint (<= 768px) */
+@media (max-width: 768px) {
+  .zfits-loader-root .zfits-loader-hud {
+    top: max(16px, env(safe-area-inset-top, 16px));
+    left: max(18px, env(safe-area-inset-left, 18px));
+    right: max(18px, env(safe-area-inset-right, 18px));
+  }
+  .zfits-loader-root .zfits-hud-title {
+    font-size: 0.84rem;
+  }
+  .zfits-loader-root .zfits-hud-subtitle {
+    font-size: 0.64rem;
+  }
+  .zfits-loader-root .zfits-hud-state {
+    font-size: 0.62rem;
+  }
+  .zfits-loader-root .zfits-character-box {
+    height: clamp(480px, 72vh, 680px);
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-sneaker-shadow {
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    width: clamp(180px, 38vw, 260px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-floor-spotlight {
+    width: 90vw;
+    height: 16vh;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-garment-chamber {
+    width: clamp(340px, 86vw, 560px);
+    height: clamp(320px, 48vh, 500px);
+    top: 32%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .zfits-loader-root .zfits-progress-dock {
+    right: max(18px, env(safe-area-inset-right, 18px));
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    min-width: auto;
+  }
+  .zfits-loader-root .zfits-meta-tag,
+  .zfits-loader-root .zfits-meta-title {
+    font-size: 0.62rem;
+  }
+  .zfits-loader-root .zfits-percentage-row {
+    font-size: clamp(46px, 8vh, 68px);
+  }
+  .zfits-loader-root .zfits-numeral-percent {
+    font-size: clamp(26px, 4.6vh, 40px);
+  }
+}
+
+/* Compact Mobile Phones (<= 480px, e.g. iPhone, Pixel, Galaxy) */
+@media (max-width: 480px) {
+  .zfits-loader-root .zfits-loader-hud {
+    top: max(14px, env(safe-area-inset-top, 14px));
+    left: max(16px, env(safe-area-inset-left, 16px));
+    right: max(16px, env(safe-area-inset-right, 16px));
+  }
+  .zfits-loader-root .zfits-hud-slash,
+  .zfits-loader-root .zfits-hud-subtitle {
+    display: none;
+  }
+  .zfits-loader-root .zfits-hud-title {
+    font-size: 0.82rem;
+    letter-spacing: 0.20em;
+  }
+  .zfits-loader-root .zfits-hud-state {
+    font-size: 0.58rem;
+    letter-spacing: 0.10em;
+  }
+  .zfits-loader-root .zfits-character-box {
+    height: clamp(420px, 68vh, 620px);
+    max-width: 86vw;
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-sneaker-shadow {
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    width: clamp(160px, 36vw, 220px);
+    height: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-garment-chamber {
+    width: 90vw;
+    height: 45vh;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .zfits-loader-root .zfits-progress-dock {
+    right: max(14px, env(safe-area-inset-right, 14px));
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  }
+  .zfits-loader-root .zfits-progress-meta {
+    gap: 5px;
+    margin-bottom: 4px;
+  }
+  .zfits-loader-root .zfits-meta-tag,
+  .zfits-loader-root .zfits-meta-title {
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+  .zfits-loader-root .zfits-percentage-row {
+    font-size: clamp(40px, 7.2vh, 56px);
+  }
+  .zfits-loader-root .zfits-numeral-percent {
+    font-size: clamp(22px, 4vh, 32px);
+  }
+}
+
+/* Landscape Mobile (Short Viewports <= 500px height) */
+@media (max-height: 500px) and (orientation: landscape) {
+  .zfits-loader-root .zfits-loader-hud {
+    top: 10px;
+    left: 20px;
+    right: 20px;
+  }
+  .zfits-loader-root .zfits-character-box {
+    height: 82vh;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-sneaker-shadow {
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .zfits-loader-root .zfits-garment-chamber {
+    width: 50vw;
+    height: 72vh;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .zfits-loader-root .zfits-progress-dock {
+    right: 20px;
+    bottom: 12px;
+  }
+  .zfits-loader-root .zfits-percentage-row {
+    font-size: clamp(34px, 10vh, 48px);
+  }
+  .zfits-loader-root .zfits-numeral-percent {
+    font-size: clamp(18px, 5.5vh, 26px);
+  }
+}
+
+/* 8. Accessibility (Reduced Motion) */
+@media (prefers-reduced-motion: reduce) {
+  .zfits-loader-root .zfits-bg-gradient,
+  .zfits-loader-root .zfits-garment-frame,
+  .zfits-loader-root .zfits-character-image,
+  .zfits-loader-root {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}
