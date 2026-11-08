@@ -145,11 +145,11 @@
 /* LAYER 3: Dual-Layer Oversized Blurred Active Garment */
 .zfits-loader-root .zfits-garment-chamber {
   position: absolute;
-  top: 35%;
+  top: 34%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: clamp(520px, 52vw, 860px);
-  height: clamp(460px, 58vh, 780px);
+  width: clamp(560px, 56vw, 920px);
+  height: clamp(480px, 60vh, 800px);
   display: flex;
   align-items: center;
   justify-content: center;

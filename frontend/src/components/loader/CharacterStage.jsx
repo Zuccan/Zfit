@@ -4,15 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 /**
  * CharacterStage
  * Unified spatial composition for the ZFITS Virtual Fashion Studio:
- * - Layer 3B: Outer atmospheric garment duplicate (soft volume & ambient color bloom)
- * - Layer 3A: Inner recognizable oversized garment cutout (distinct collar, sleeves, shoulders)
+ * - Layer 3B: Outer atmospheric garment duplicate (soft radiant volume & ambient color bloom)
+ * - Layer 3A: Inner recognizable oversized garment cutout (distinct collar, sleeves, shoulders, drop-shadow depth)
  * - Layer 5: Studio floor reflection & ground contact shadow
  * - Layer 4: Sharp foreground fashion avatar horizontally centered relative to the viewport
  */
 export const CharacterStage = memo(function CharacterStage({ currentScene }) {
   return (
     <div className="zfits-stage-chamber" aria-hidden="false">
-      {/* LAYER 3B: Outer Atmospheric Garment Duplicate (Larger scale, softer blur) */}
+      {/* LAYER 3B: Outer Atmospheric Garment Duplicate (Larger scale, softer bloom) */}
       <div className="zfits-garment-chamber atmospheric" aria-hidden="true">
         <AnimatePresence mode="sync">
           <motion.div
@@ -20,7 +20,7 @@ export const CharacterStage = memo(function CharacterStage({ currentScene }) {
             className="zfits-garment-frame"
             initial={{ opacity: 0 }}
             animate={{
-              opacity: currentScene.garmentAtmosphericOpacity ?? 0.22,
+              opacity: currentScene.garmentAtmosphericOpacity ?? 0.38,
             }}
             exit={{ opacity: 0 }}
             transition={{
@@ -33,8 +33,8 @@ export const CharacterStage = memo(function CharacterStage({ currentScene }) {
               alt=""
               className="zfits-blurred-garment atmospheric-blur"
               style={{
-                filter: `blur(${currentScene.garmentAtmosphericBlur ?? 38}px) saturate(135%)`,
-                transform: `scale(${currentScene.garmentAtmosphericScale ?? 1.66})`,
+                filter: `blur(${currentScene.garmentAtmosphericBlur ?? 34}px) saturate(140%)`,
+                transform: `scale(${currentScene.garmentAtmosphericScale ?? 1.72})`,
               }}
               loading="eager"
               decoding="sync"
@@ -43,7 +43,7 @@ export const CharacterStage = memo(function CharacterStage({ currentScene }) {
         </AnimatePresence>
       </div>
 
-      {/* LAYER 3A: Inner Recognizable Garment Cutout (12-18px blur, distinct shape & details) */}
+      {/* LAYER 3A: Inner Recognizable Garment Cutout (Distinct shape, enhanced contrast & 3D shadow) */}
       <div className="zfits-garment-chamber recognizable" aria-hidden="true">
         <AnimatePresence mode="sync">
           <motion.div
@@ -51,7 +51,7 @@ export const CharacterStage = memo(function CharacterStage({ currentScene }) {
             className="zfits-garment-frame"
             initial={{ opacity: 0 }}
             animate={{
-              opacity: currentScene.garmentRecognizableOpacity ?? 0.35,
+              opacity: currentScene.garmentRecognizableOpacity ?? 0.65,
             }}
             exit={{ opacity: 0 }}
             transition={{
@@ -64,8 +64,8 @@ export const CharacterStage = memo(function CharacterStage({ currentScene }) {
               alt=""
               className="zfits-blurred-garment recognizable-blur"
               style={{
-                filter: `blur(${currentScene.garmentRecognizableBlur ?? 16}px) saturate(120%)`,
-                transform: `scale(${currentScene.garmentRecognizableScale ?? 1.46})`,
+                filter: `blur(${currentScene.garmentRecognizableBlur ?? 14}px) contrast(1.18) saturate(128%) drop-shadow(0 10px 36px rgba(0, 0, 0, 0.30))`,
+                transform: `scale(${currentScene.garmentRecognizableScale ?? 1.52})`,
               }}
               loading="eager"
               decoding="sync"

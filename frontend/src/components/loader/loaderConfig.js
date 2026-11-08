@@ -10,11 +10,14 @@ import shirt3 from '../../assets/Outfits/shirt3.png';
 
 /**
  * ZFITS AI STYLING STUDIO SPECIFICATION
- * Updated Background Palettes matching the newly uploaded avatars & outfits:
- * 1. Pink: #FB7EA4 (Look 01 - Rose Overshirt)
- * 2. Burgundy: #450E16 (Look 02 - Heavyweight Hoodie)
- * 3. Orange: #F46208 (Look 03 - Rust Overshirt)
- * 4. Forest Green: #1B3D31 (Look 04 - Forest Utility Shirt)
+ * Legendary Studio Lighting with Lighter, Illuminated Environments:
+ * - Clean radiant ambient lighting in the center separating background from garment
+ * - Higher contrast, unmistakable oversized garment silhouettes
+ * - Soft volumetric bloom & drop shadow framing the avatar
+ * 1. Pink: Rose Blush Glow (Look 01)
+ * 2. Burgundy: Luminous Ruby/Wine Velvet (Look 02)
+ * 3. Orange: Sunlit Golden Amber (Look 03)
+ * 4. Forest Green: Radiant Emerald Sage (Look 04)
  */
 export const LOADER_SCENES = [
   {
@@ -26,18 +29,18 @@ export const LOADER_SCENES = [
     characterSrc: char1,
     outfitSrc: shirt1,
     palette: {
-      center: '#FB7EA4',
-      mid: '#CC6785',
-      edge: '#8C354E',
-      vignette: 'rgba(0, 0, 0, 0.45)',
+      center: '#FFBCD0',
+      mid: '#FB94B4',
+      edge: '#DE688D',
+      vignette: 'rgba(0, 0, 0, 0.22)',
     },
-    floorSpotlight: 'radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 220, 235, 0.22) 0%, transparent 75%)',
-    garmentRecognizableScale: 1.46,
-    garmentRecognizableBlur: 16,
-    garmentRecognizableOpacity: 0.38,
-    garmentAtmosphericScale: 1.66,
-    garmentAtmosphericBlur: 38,
-    garmentAtmosphericOpacity: 0.24,
+    floorSpotlight: 'radial-gradient(ellipse 65% 45% at 50% 100%, rgba(255, 235, 245, 0.35) 0%, transparent 75%)',
+    garmentRecognizableScale: 1.52,
+    garmentRecognizableBlur: 14,
+    garmentRecognizableOpacity: 0.65,
+    garmentAtmosphericScale: 1.72,
+    garmentAtmosphericBlur: 34,
+    garmentAtmosphericOpacity: 0.38,
   },
   {
     id: 'scene-burgundy',
@@ -48,18 +51,18 @@ export const LOADER_SCENES = [
     characterSrc: char4,
     outfitSrc: shirt4,
     palette: {
-      center: '#561822',
-      mid: '#450E16',
-      edge: '#20060A',
-      vignette: 'rgba(0, 0, 0, 0.60)',
+      center: '#B8384E',
+      mid: '#942638',
+      edge: '#661826',
+      vignette: 'rgba(0, 0, 0, 0.30)',
     },
-    floorSpotlight: 'radial-gradient(ellipse 65% 42% at 50% 100%, rgba(255, 215, 225, 0.14) 0%, transparent 75%)',
-    garmentRecognizableScale: 1.46,
-    garmentRecognizableBlur: 16,
-    garmentRecognizableOpacity: 0.36,
-    garmentAtmosphericScale: 1.66,
-    garmentAtmosphericBlur: 38,
-    garmentAtmosphericOpacity: 0.24,
+    floorSpotlight: 'radial-gradient(ellipse 65% 45% at 50% 100%, rgba(255, 215, 230, 0.35) 0%, transparent 75%)',
+    garmentRecognizableScale: 1.52,
+    garmentRecognizableBlur: 14,
+    garmentRecognizableOpacity: 0.75,
+    garmentAtmosphericScale: 1.72,
+    garmentAtmosphericBlur: 34,
+    garmentAtmosphericOpacity: 0.45,
   },
   {
     id: 'scene-orange',
@@ -70,18 +73,18 @@ export const LOADER_SCENES = [
     characterSrc: char2,
     outfitSrc: shirt2,
     palette: {
-      center: '#F46208',
-      mid: '#C34E06',
-      edge: '#7A2E00',
-      vignette: 'rgba(0, 0, 0, 0.50)',
+      center: '#FFAE6A',
+      mid: '#F47B22',
+      edge: '#C95208',
+      vignette: 'rgba(0, 0, 0, 0.24)',
     },
-    floorSpotlight: 'radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 230, 205, 0.20) 0%, transparent 75%)',
-    garmentRecognizableScale: 1.46,
-    garmentRecognizableBlur: 16,
-    garmentRecognizableOpacity: 0.38,
-    garmentAtmosphericScale: 1.66,
-    garmentAtmosphericBlur: 38,
-    garmentAtmosphericOpacity: 0.24,
+    floorSpotlight: 'radial-gradient(ellipse 65% 45% at 50% 100%, rgba(255, 235, 215, 0.35) 0%, transparent 75%)',
+    garmentRecognizableScale: 1.52,
+    garmentRecognizableBlur: 14,
+    garmentRecognizableOpacity: 0.65,
+    garmentAtmosphericScale: 1.72,
+    garmentAtmosphericBlur: 34,
+    garmentAtmosphericOpacity: 0.38,
   },
   {
     id: 'scene-green',
@@ -92,18 +95,18 @@ export const LOADER_SCENES = [
     characterSrc: char3,
     outfitSrc: shirt3,
     palette: {
-      center: '#224D3E',
-      mid: '#1B3D31',
-      edge: '#0C1E18',
-      vignette: 'rgba(0, 0, 0, 0.60)',
+      center: '#4B9B80',
+      mid: '#337C64',
+      edge: '#205342',
+      vignette: 'rgba(0, 0, 0, 0.30)',
     },
-    floorSpotlight: 'radial-gradient(ellipse 65% 42% at 50% 100%, rgba(190, 240, 220, 0.14) 0%, transparent 75%)',
-    garmentRecognizableScale: 1.46,
-    garmentRecognizableBlur: 16,
-    garmentRecognizableOpacity: 0.40,
-    garmentAtmosphericScale: 1.66,
-    garmentAtmosphericBlur: 38,
-    garmentAtmosphericOpacity: 0.24,
+    floorSpotlight: 'radial-gradient(ellipse 65% 45% at 50% 100%, rgba(200, 245, 225, 0.35) 0%, transparent 75%)',
+    garmentRecognizableScale: 1.52,
+    garmentRecognizableBlur: 14,
+    garmentRecognizableOpacity: 0.72,
+    garmentAtmosphericScale: 1.72,
+    garmentAtmosphericBlur: 34,
+    garmentAtmosphericOpacity: 0.42,
   },
 ];
 
