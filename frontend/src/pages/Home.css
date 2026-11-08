@@ -28,7 +28,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px clamp(24px, 4vw, 56px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--theme-nav-border, rgba(255, 255, 255, 0.07));
+  transition: border-color 750ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .zfits-app-container .nav-left {
@@ -46,13 +47,21 @@
   text-decoration: none;
 }
 
+.zfits-app-container .logo-dot {
+  color: var(--theme-accent-light, #FFFFFF);
+  text-shadow: 0 0 14px var(--theme-accent-glow, transparent);
+  transition: color 750ms cubic-bezier(0.22, 1, 0.36, 1), text-shadow 750ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .zfits-app-container .nav-badge {
   font-size: 0.65rem;
   letter-spacing: 0.15em;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-badge-bg, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--theme-tag-border, transparent);
   padding: 3px 8px;
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--theme-accent-light, rgba(255, 255, 255, 0.8));
+  transition: all 750ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .zfits-app-container .nav-links {
@@ -71,12 +80,76 @@
 
 .zfits-app-container .nav-links a.active,
 .zfits-app-container .nav-links a:hover {
-  color: #FFFFFF;
+  color: var(--theme-accent-light, #FFFFFF);
+}
+
+.zfits-app-container .nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ==========================================================================
+   CIRCULAR THEME PALETTE SWATCHES IN NAVBAR
+   4 Circular buttons triggering fluid top-to-bottom theme cascades
+   ========================================================================== */
+.zfits-app-container .nav-theme-swatches {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--theme-tag-border, rgba(255, 255, 255, 0.14));
+  padding: 5px 12px;
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color 750ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 750ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.25);
+}
+
+.zfits-app-container .nav-swatch-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  transition: transform 220ms ease, box-shadow 350ms ease, border-color 350ms ease;
+  position: relative;
+}
+
+.zfits-app-container .nav-swatch-circle:hover {
+  transform: scale(1.18);
+  border-color: #FFFFFF;
+}
+
+.zfits-app-container .nav-swatch-circle.active {
+  transform: scale(1.14);
+  border-color: #FFFFFF;
+}
+
+.zfits-app-container .swatch-indicator-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+
+.zfits-app-container .swatch-indicator-dot.contrast-dot {
+  background-color: #0c0c0e;
+  border: 1px solid #FFFFFF;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
 }
 
 .zfits-app-container .replay-btn {
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--theme-tag-border, rgba(255, 255, 255, 0.2));
   color: #FFFFFF;
   font-size: 0.72rem;
   letter-spacing: 0.12em;
@@ -91,12 +164,84 @@
 
 .zfits-app-container .replay-btn:hover {
   background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: var(--theme-accent, rgba(255, 255, 255, 0.5));
 }
 
 .zfits-app-container .replay-icon {
   font-size: 1rem;
   line-height: 1;
+}
+
+/* ==========================================================================
+   TOP-TO-BOTTOM THEME BACKGROUND STAGE
+   ========================================================================== */
+.zfits-app-container .zfits-theme-stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.zfits-app-container .zfits-theme-base {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  will-change: background;
+}
+
+.zfits-app-container .zfits-theme-curtain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  will-change: clip-path, opacity;
+}
+
+.zfits-app-container .zfits-theme-flare {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.zfits-app-container .zfits-theme-sweep-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  will-change: top, opacity;
+}
+
+.zfits-app-container .zfits-app-nav,
+.zfits-app-container .zfits-app-main,
+.zfits-app-container .zfits-app-footer {
+  position: relative;
+  z-index: 2;
+}
+
+.zfits-app-container .app-hero-tag {
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  background: var(--theme-tag-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--theme-tag-border, rgba(255, 255, 255, 0.12));
+  color: var(--theme-tag-text, rgba(255, 255, 255, 0.8));
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  transition: all 750ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zfits-app-container .hero-accent-text {
+  color: var(--theme-accent-light, #FFFFFF);
+  text-shadow: 0 0 35px var(--theme-accent-glow, transparent);
+  transition: color 750ms cubic-bezier(0.22, 1, 0.36, 1), text-shadow 750ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .zfits-app-container .zfits-app-main {
@@ -113,14 +258,6 @@
   margin: 0 auto 80px auto;
 }
 
-.zfits-app-container .app-hero-tag {
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.45);
-  display: block;
-  margin-bottom: 16px;
-}
-
 .zfits-app-container .app-hero-heading {
   font-family: 'Haas Regular', system-ui, sans-serif;
   font-size: clamp(2.8rem, 5.5vw, 5.2rem);
@@ -132,7 +269,7 @@
 
 .zfits-app-container .app-hero-sub {
   font-size: clamp(1rem, 1.2vw, 1.15rem);
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.65);
   line-height: 1.6;
   margin: 0 auto 36px auto;
 }
@@ -155,30 +292,32 @@
   border-radius: 999px;
   border: none;
   cursor: pointer;
-  transition: transform 200ms, background 200ms;
+  box-shadow: 0 4px 22px var(--theme-accent-glow, rgba(255, 255, 255, 0.15));
+  transition: transform 200ms, background 200ms, box-shadow 750ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .zfits-app-container .primary-cta-btn:hover {
   transform: translateY(-2px);
   background: #f0f0f0;
+  box-shadow: 0 6px 30px var(--theme-accent-glow, rgba(255, 255, 255, 0.25));
 }
 
 .zfits-app-container .secondary-cta-btn {
   background: transparent;
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--theme-tag-border, rgba(255, 255, 255, 0.3));
   font-weight: 500;
   font-size: 0.8rem;
   letter-spacing: 0.12em;
   padding: 14px 28px;
   border-radius: 999px;
   cursor: pointer;
-  transition: all 200ms;
+  transition: all 300ms ease;
 }
 
 .zfits-app-container .secondary-cta-btn:hover {
-  border-color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--theme-accent, #FFFFFF);
+  background: var(--theme-tag-bg, rgba(255, 255, 255, 0.08));
 }
 
 .zfits-app-container .app-curations-section {
@@ -219,12 +358,26 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   overflow: hidden;
-  transition: transform 300ms ease, border-color 300ms ease;
+  cursor: pointer;
+  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1), border-color 350ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 350ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .zfits-app-container .outfit-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--theme-accent, rgba(255, 255, 255, 0.35));
+}
+
+.zfits-app-container .outfit-card.theme-matched {
+  border-color: var(--theme-accent, rgba(255, 255, 255, 0.5));
+  box-shadow: 0 8px 32px var(--theme-accent-glow, transparent);
+  transform: translateY(-4px);
+}
+
+.zfits-app-container .outfit-card.theme-matched .outfit-pill {
+  background: var(--theme-accent, #FFFFFF);
+  color: #0c0c0e;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
 
 .zfits-app-container .outfit-card-preview {
@@ -258,6 +411,7 @@
   padding: 4px 10px;
   border-radius: 999px;
   color: #FFFFFF;
+  transition: background-color 400ms ease, color 400ms ease;
 }
 
 .zfits-app-container .outfit-card-info {
@@ -342,6 +496,20 @@
     display: none;
   }
 
+  .zfits-app-container .nav-actions {
+    gap: 10px;
+  }
+
+  .zfits-app-container .nav-theme-swatches {
+    padding: 4px 8px;
+    gap: 7px;
+  }
+
+  .zfits-app-container .nav-swatch-circle {
+    width: 20px;
+    height: 20px;
+  }
+
   .zfits-app-container .replay-text-desktop {
     display: none;
   }
@@ -414,16 +582,41 @@
 
 @media (max-width: 480px) {
   .zfits-app-container .zfits-app-nav {
-    padding: 14px 16px;
+    padding: 14px 14px;
   }
 
   .zfits-app-container .nav-logo {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
   }
 
   .zfits-app-container .nav-badge {
-    font-size: 0.58rem;
-    padding: 2px 6px;
+    font-size: 0.55rem;
+    padding: 2px 5px;
+  }
+
+  .zfits-app-container .nav-actions {
+    gap: 6px;
+  }
+
+  .zfits-app-container .nav-theme-swatches {
+    padding: 3px 6px;
+    gap: 5px;
+  }
+
+  .zfits-app-container .nav-swatch-circle {
+    width: 17px;
+    height: 17px;
+  }
+
+  .zfits-app-container .swatch-indicator-dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .zfits-app-container .replay-btn {
+    padding: 5px 9px;
+    font-size: 0.62rem;
+    gap: 4px;
   }
 
   .zfits-app-container .zfits-app-main {
