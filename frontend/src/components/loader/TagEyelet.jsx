@@ -7,41 +7,41 @@ import { TAG_DIMENSIONS } from './TagGeometry';
  * Authentic brushed silver metallic grommet lining the tag's genuine hole cutout:
  * - Front and rear Torus rings creating raised metallic lips
  * - Inner sleeve cylinder seamlessly lining the punched hole
+ * - Highly reflective MeshPhysicalMaterial catching specular studio highlights
  */
-export function TagEyelet({ holeY }) {
+export function TagEyelet({ holeY = 0 }) {
   const { holeRadius, depth, bevelThickness } = TAG_DIMENSIONS;
   const totalThickness = depth + bevelThickness * 2;
   const halfZ = totalThickness / 2;
 
-  // Reusable brushed metallic material
+  // Ultra-realistic brushed chrome/silver metal material
   const eyeletMaterial = useMemo(() => {
     return new THREE.MeshPhysicalMaterial({
-      color: '#d6d8db',
-      metalness: 0.95,
-      roughness: 0.22,
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.1,
-      reflectivity: 0.9,
+      color: '#e4e8ec',
+      metalness: 0.96,
+      roughness: 0.16,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.12,
+      reflectivity: 0.92,
     });
   }, []);
 
-  // Geometries for front/back rings and inner lining cylinder
-  const ringRadius = holeRadius + 0.016;
-  const tubeRadius = 0.022;
+  const ringRadius = holeRadius + 0.012;
+  const tubeRadius = 0.018;
 
   const torusGeom = useMemo(() => {
-    return new THREE.TorusGeometry(ringRadius, tubeRadius, 16, 32);
+    return new THREE.TorusGeometry(ringRadius, tubeRadius, 20, 36);
   }, [ringRadius, tubeRadius]);
 
   const sleeveGeom = useMemo(() => {
-    const geom = new THREE.CylinderGeometry(holeRadius, holeRadius, totalThickness + 0.01, 32, 1, true);
+    const geom = new THREE.CylinderGeometry(holeRadius, holeRadius, totalThickness + 0.015, 36, 1, true);
     geom.rotateX(Math.PI / 2);
     return geom;
   }, [holeRadius, totalThickness]);
 
   return (
     <group position={[0, holeY, 0]}>
-      {/* Front metallic lip */}
+      {/* Front metallic raised ring lip */}
       <mesh
         geometry={torusGeom}
         material={eyeletMaterial}
@@ -50,7 +50,7 @@ export function TagEyelet({ holeY }) {
         receiveShadow
       />
 
-      {/* Rear metallic lip */}
+      {/* Rear metallic raised ring lip */}
       <mesh
         geometry={torusGeom}
         material={eyeletMaterial}
@@ -67,4 +67,3 @@ export function TagEyelet({ holeY }) {
     </group>
   );
 }
-

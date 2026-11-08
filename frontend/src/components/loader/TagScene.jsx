@@ -26,38 +26,38 @@ function TagSceneContent({
   return (
     <>
       {/* Luxury Studio Three-Point Lighting */}
-      <ambientLight intensity={0.85} color="#ffffff" />
+      <ambientLight intensity={0.9} color="#ffffff" />
 
-      {/* Key Light: Casts crisp directional light highlighting beveled chamfers */}
+      {/* Key Light: High-angle directional light casting crisp shadows and highlights */}
       <directionalLight
-        position={[3, 5, 4]}
-        intensity={2.0}
+        position={[3.5, 4.5, 3.5]}
+        intensity={2.2}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
-        shadow-camera-far={15}
+        shadow-camera-far={12}
         shadow-bias={-0.0001}
       />
 
-      {/* Rim / Back Light: Accentuates silhouetted edges and cardstock bevels */}
+      {/* Back / Rim Light: Cool tone grazing beveled chamfers and physical thickness */}
       <directionalLight
-        position={[-3, 2, -3]}
-        intensity={1.2}
-        color="#e6ecff"
+        position={[-3.5, 2.0, -2.5]}
+        intensity={1.8}
+        color="#edf2ff"
       />
 
-      {/* Secondary Soft Bounce Light */}
+      {/* Secondary Soft Bounce Fill Light */}
       <directionalLight
-        position={[0, -3, 2]}
-        intensity={0.4}
+        position={[0, -3.0, 2.0]}
+        intensity={0.35}
         color="#ffffff"
       />
 
       {/* Master GSAP Transition Group: Decoupled from physics spring group */}
       <group ref={masterGroupRef} position={[0, 0, 0]}>
         {/* Dynamic Zero-Allocation Braided Hanging String */}
-        <TagString eyeletRef={eyeletAnchorRef} ceilingY={3.6} />
+        <TagString eyeletRef={eyeletAnchorRef} ceilingY={3.5} />
 
         {/* 3D Suspended Fashion Tag */}
         <HangingTag
@@ -70,11 +70,11 @@ function TagSceneContent({
 
       {/* Soft Contact Floor Shadow */}
       <ContactShadows
-        position={[0, -2.05, 0]}
-        opacity={0.45}
-        scale={7}
-        blur={2.0}
-        far={4}
+        position={[0, -1.8, 0]}
+        opacity={0.55}
+        scale={6.5}
+        blur={2.2}
+        far={3.5}
         resolution={512}
         color="#000000"
       />
@@ -84,7 +84,8 @@ function TagSceneContent({
 
 /**
  * TagScene
- * R3F Canvas container with optimized WebGL settings and centered framing.
+ * R3F Canvas container with optimized WebGL settings, camera composition,
+ * framing the fashion tag at dominant 70vh desktop screen presence.
  */
 export function TagScene({
   onPullTrigger,
@@ -96,7 +97,7 @@ export function TagScene({
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [0, -0.2, 5.8], fov: 42 }}
+      camera={{ position: [0, -0.05, 5.0], fov: 38 }}
       gl={{
         antialias: true,
         alpha: true,

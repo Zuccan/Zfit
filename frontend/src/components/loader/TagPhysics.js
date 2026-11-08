@@ -1,168 +1,233 @@
 /**
  * TagPhysics
- * Damped 3-DOF spherical pendulum and angular spring simulation:
- * - Pitch (X-axis): Front/back displacement and gravity restoration
- * - Twist (Y-axis): Axial aerodynamic rotation
- * - Roll (Z-axis): Horizontal sway left and right
- * - Vertical Elastic Tension: Downward stretch for deliberate pull-triggering
- * - Frame-rate independent numerical integration with preserved release momentum
+ * Physically simulated 3D rigid-body pendulum engine:
+ * - 3 independent rotational degrees of freedom: Roll (Z), Pitch (X), Yaw/Twist (Y)
+ * - Torque-based interaction: τ = r × F (drag position on card determines rotational response)
+ * - Dragging bottom-left twists differently than center or bottom-right
+ * - Preserves angular momentum on pointer release
+ * - Gravitational & torsional spring restoring forces with physical damping
+ * - Deliberate downward pull threshold detection
  */
+
+const CLAMP = (val, min, max) => Math.min(Math.max(val, min), max);
 
 export class TagPhysics {
   constructor(options = {}) {
-    // Spring stiffness coefficients for each degree of freedom
+    this.pullThreshold = options.pullThreshold || 0.48;
+
+    // Current 3D angular state (radians)
+    // Starts with a subtle natural 3D angle so sidewalls and thickness are immediately visible!
+    this.rotation = {
+      x: 0.06,  // Subtle forward tilt (pitch)
+      y: 0.18,  // Natural 3D twist revealing card thickness & metallic eyelet (yaw)
+      z: -0.04, // Subtle lateral sway (roll)
+    };
+
+    // Angular velocities (rad/s) with initial physical disturbance
+    this.velocity = {
+      x: 0.0,
+      y: 0.65,  // Initial gentle spin that smoothly settles
+      z: -0.35, // Initial gentle sway
+    };
+
+    // Card moments of inertia (Ix, Iy, Iz)
+    // Iy is much lower than Ix/Iz: a hanging tag twists easily around its vertical cord!
+    this.inertia = {
+      x: 1.8,
+      y: 0.45,
+      z: 1.8,
+    };
+
+    // Restoring spring stiffness constants
     this.stiffness = {
-      x: options.stiffnessX ?? 32.0, // Pitch (front/back)
-      y: options.stiffnessY ?? 22.0, // Twist (axial)
-      z: options.stiffnessZ ?? 36.0, // Roll (left/right sway)
-      pull: 42.0,                   // Vertical elastic tension
+      x: 28.0, // Pendulum gravity restoration (pitch)
+      y: 14.0, // Cord torsional twist restoration (yaw)
+      z: 32.0, // Pendulum gravity restoration (roll)
     };
 
-    // Damping ratios for smooth decay
+    // Damping coefficients (air resistance + cord hinge friction)
     this.damping = {
-      x: options.dampingX ?? 3.4,
-      y: options.dampingY ?? 2.6,
-      z: options.dampingZ ?? 3.2,
-      pull: 5.5,
+      x: 3.2,
+      y: 2.2,
+      z: 3.4,
     };
 
-    // Current angular state (radians)
-    this.rotation = { x: 0, y: 0, z: 0 };
-    this.velocity = { x: 0, y: 0, z: 0 };
-    this.target = { x: 0, y: 0, z: 0 };
-
-    // Vertical pull displacement
+    // Vertical downward pull state (units)
     this.pullY = 0;
     this.pullVelocity = 0;
-    this.targetPullY = 0;
+    this.pullStiffness = 85.0;
+    this.pullDamping = 8.5;
 
-    // Interaction flags
+    // Interaction state
     this.isDragging = false;
-    this.hasTriggeredPull = false;
-    this.pullThreshold = options.pullThreshold ?? 0.65; // World units downward
-
-    // Historical pointer velocity tracking for release momentum
-    this.lastPointer = { x: 0, y: 0, time: 0 };
+    this.dragLeverArm = { x: 0, y: -1.3, z: 0 }; // Local hit position r relative to eyelet
+    this.appliedForce = { x: 0, y: 0, z: 0 };
+    this.lastPointerPos = { x: 0, y: 0 };
     this.pointerVelocity = { x: 0, y: 0 };
   }
 
   /**
-   * Called when pointer grabs the tag
+   * Pointer grabbed at 3D point r relative to eyelet pivot
+   * @param {number} clientX
+   * @param {number} clientY
+   * @param {THREE.Vector3} localHitPoint - Hit position on card relative to eyelet
    */
-  startDrag(pointerX, pointerY) {
+  startDrag(clientX, clientY, localHitPoint = null) {
     this.isDragging = true;
-    this.lastPointer.x = pointerX;
-    this.lastPointer.y = pointerY;
-    this.lastPointer.time = performance.now();
+    this.lastPointerPos.x = clientX;
+    this.lastPointerPos.y = clientY;
     this.pointerVelocity.x = 0;
     this.pointerVelocity.y = 0;
-  }
 
-  /**
-   * Called while pointer is dragging across viewport
-   */
-  updateDrag(pointerX, pointerY, deltaWorldX, deltaWorldY) {
-    if (!this.isDragging) return;
-
-    const now = performance.now();
-    const dt = Math.max(0.005, (now - this.lastPointer.time) / 1000);
-
-    // Track instantaneous pointer velocity
-    this.pointerVelocity.x = (pointerX - this.lastPointer.x) / dt;
-    this.pointerVelocity.y = (pointerY - this.lastPointer.y) / dt;
-
-    this.lastPointer.x = pointerX;
-    this.lastPointer.y = pointerY;
-    this.lastPointer.time = now;
-
-    // 1. Horizontal sway (Z-axis roll) and twist (Y-axis yaw)
-    this.target.z = THREE_MATH_CLAMP(-deltaWorldX * 0.45, -0.9, 0.9);
-    this.target.y = THREE_MATH_CLAMP(deltaWorldX * 0.35, -0.75, 0.75);
-
-    // 2. Pitch (X-axis) and downward pull tension
-    if (deltaWorldY < 0) {
-      // Downward pull with realistic elastic resistance (diminishing displacement)
-      const rawPull = -deltaWorldY;
-      this.targetPullY = Math.pow(rawPull, 0.8) * 0.55;
-      this.target.x = THREE_MATH_CLAMP(-this.targetPullY * 0.4, -0.6, 0.4);
+    if (localHitPoint) {
+      this.dragLeverArm.x = CLAMP(localHitPoint.x, -0.6, 0.6);
+      this.dragLeverArm.y = CLAMP(localHitPoint.y, -2.5, -0.1);
+      this.dragLeverArm.z = localHitPoint.z || 0;
     } else {
-      // Upward or neutral push
-      this.targetPullY = 0;
-      this.target.x = THREE_MATH_CLAMP(deltaWorldY * 0.35, -0.4, 0.6);
+      // Default to optical center of the card
+      this.dragLeverArm.x = 0;
+      this.dragLeverArm.y = -1.3;
+      this.dragLeverArm.z = 0;
     }
   }
 
   /**
-   * Called when pointer is released
+   * Updates drag forces based on pointer displacement and lever arm
+   * @param {number} clientX
+   * @param {number} clientY
+   * @param {number} deltaWorldX
+   * @param {number} deltaWorldY
+   */
+  updateDrag(clientX, clientY, deltaWorldX, deltaWorldY) {
+    if (!this.isDragging) return;
+
+    // Track pointer velocity for momentum transfer on release
+    const pvx = clientX - this.lastPointerPos.x;
+    const pvy = clientY - this.lastPointerPos.y;
+    this.pointerVelocity.x = this.pointerVelocity.x * 0.4 + pvx * 0.6;
+    this.pointerVelocity.y = this.pointerVelocity.y * 0.4 + pvy * 0.6;
+    this.lastPointerPos.x = clientX;
+    this.lastPointerPos.y = clientY;
+
+    // Compute external force applied at lever arm point
+    // Fx pushes card horizontally; Fy pulls down or pushes up
+    const forceFactor = 38.0;
+    this.appliedForce.x = deltaWorldX * forceFactor;
+    this.appliedForce.y = deltaWorldY * forceFactor;
+    this.appliedForce.z = -deltaWorldY * forceFactor * 0.2; // Vertical pull induces slight 3D depth tilt
+
+    // Downward displacement under elastic resistance
+    if (deltaWorldY < 0) {
+      const targetPull = Math.pow(-deltaWorldY, 0.8) * 0.65;
+      this.pullY = Math.max(this.pullY, targetPull);
+    }
+  }
+
+  /**
+   * Pointer released: transfers impulse and preserves angular momentum
+   * @returns {boolean} wasDeliberatePull - Whether downward pull threshold was reached
    */
   release() {
     if (!this.isDragging) return false;
     this.isDragging = false;
 
-    // Check if user exceeded deliberate downward pull threshold
+    // Check deliberate downward pull threshold
     const wasDeliberatePull = this.pullY >= this.pullThreshold;
 
-    // Transfer release pointer velocity into physical angular momentum
-    const impulseMultiplier = 0.08;
-    this.velocity.z += THREE_MATH_CLAMP(this.pointerVelocity.x * impulseMultiplier, -15, 15);
-    this.velocity.x += THREE_MATH_CLAMP(this.pointerVelocity.y * impulseMultiplier * 0.8, -12, 12);
-    this.velocity.y += THREE_MATH_CLAMP(this.pointerVelocity.x * impulseMultiplier * 0.5, -10, 10);
+    // Transfer release pointer velocity directly into angular momentum
+    // Impulse: ΔL = r × (m * v)
+    const rx = this.dragLeverArm.x;
+    const ry = this.dragLeverArm.y;
+    const vx = this.pointerVelocity.x * 0.08;
+    const vy = this.pointerVelocity.y * 0.08;
 
-    // Reset targets to natural resting equilibrium
-    this.target.x = 0;
-    this.target.y = 0;
-    this.target.z = 0;
-    this.targetPullY = 0;
+    // Angular velocity impulses around Roll (Z), Pitch (X), and Twist (Y)
+    this.velocity.z += CLAMP((-ry * vx + rx * vy) * 0.8, -12, 12);
+    this.velocity.y += CLAMP((rx * -vy * 1.5), -14, 14);
+    this.velocity.x += CLAMP(vy * 0.8, -10, 10);
+
+    // Reset applied forces
+    this.appliedForce.x = 0;
+    this.appliedForce.y = 0;
+    this.appliedForce.z = 0;
 
     return wasDeliberatePull;
   }
 
   /**
-   * Frame-by-frame simulation step
+   * Advances the physical simulation step by deltaTime
    */
   step(deltaTime, totalTime) {
-    const dt = Math.min(0.04, Math.max(0.001, deltaTime));
+    const dt = Math.min(0.033, Math.max(0.002, deltaTime));
 
-    // Idle ambient micro-motion when resting and not grabbed
-    if (!this.isDragging) {
-      const idleRoll = Math.sin(totalTime * 0.9) * 0.022 + Math.cos(totalTime * 1.5) * 0.008;
-      const idleYaw = Math.sin(totalTime * 0.65) * 0.016;
-      const idlePitch = Math.cos(totalTime * 0.8) * 0.012;
+    // Calculate torques τ = r × F
+    let tauDragX = 0;
+    let tauDragY = 0;
+    let tauDragZ = 0;
 
-      this.target.z = idleRoll;
-      this.target.y = idleYaw;
-      this.target.x = idlePitch;
+    if (this.isDragging) {
+      const rx = this.dragLeverArm.x;
+      const ry = this.dragLeverArm.y;
+      const rz = this.dragLeverArm.z;
+      const fx = this.appliedForce.x;
+      const fy = this.appliedForce.y;
+      const fz = this.appliedForce.z;
+
+      // τ = r × F:
+      tauDragX = ry * fz - rz * fy;
+      // Twist (Y-axis): pulling on the left (rx < 0) vs right (rx > 0) creates opposite yaw torque!
+      tauDragY = rz * fx - rx * fz - rx * fy * 0.8;
+      tauDragZ = rx * fy - ry * fx;
+    } else {
+      // Natural subtle idle breathing when not interacted with
+      // Non-repetitive combination of primes to prevent monotonous looping
+      const idleTorqueY = Math.sin(totalTime * 0.73) * 0.15 + Math.cos(totalTime * 1.37) * 0.08;
+      const idleTorqueZ = Math.sin(totalTime * 0.91) * 0.18 + Math.cos(totalTime * 1.63) * 0.06;
+      tauDragY = idleTorqueY;
+      tauDragZ = idleTorqueZ;
     }
 
-    // 1. Roll (Z-axis sway) integration
-    const accelZ = -this.stiffness.z * (this.rotation.z - this.target.z) - this.damping.z * this.velocity.z;
-    this.velocity.z += accelZ * dt;
+    // 1. Total Torques: Restoring torque + Drag torque - Damping torque
+    const tauTotalX = -this.stiffness.x * Math.sin(this.rotation.x) + tauDragX - this.damping.x * this.velocity.x;
+    const tauTotalY = -this.stiffness.y * this.rotation.y + tauDragY - this.damping.y * this.velocity.y;
+    const tauTotalZ = -this.stiffness.z * Math.sin(this.rotation.z) + tauDragZ - this.damping.z * this.velocity.z;
+
+    // 2. Angular accelerations: α = τ / I
+    const alphaX = tauTotalX / this.inertia.x;
+    const alphaY = tauTotalY / this.inertia.y;
+    const alphaZ = tauTotalZ / this.inertia.z;
+
+    // 3. Semi-implicit Euler integration
+    this.velocity.x += alphaX * dt;
+    this.velocity.y += alphaY * dt;
+    this.velocity.z += alphaZ * dt;
+
+    this.rotation.x += this.velocity.x * dt;
+    this.rotation.y += this.velocity.y * dt;
     this.rotation.z += this.velocity.z * dt;
 
-    // 2. Pitch (X-axis tilt) integration
-    const accelX = -this.stiffness.x * (this.rotation.x - this.target.x) - this.damping.x * this.velocity.x;
-    this.velocity.x += accelX * dt;
-    this.rotation.x += this.velocity.x * dt;
+    // Safety clamps on extreme angles to maintain realistic cord suspension
+    this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
+    this.rotation.y = CLAMP(this.rotation.y, -2.4, 2.4);
+    this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
 
-    // 3. Twist (Y-axis yaw) integration
-    const accelY = -this.stiffness.y * (this.rotation.y - this.target.y) - this.damping.y * this.velocity.y;
-    this.velocity.y += accelY * dt;
-    this.rotation.y += this.velocity.y * dt;
+    // 4. Vertical downward pull spring simulation
+    if (!this.isDragging) {
+      const pullForce = -this.pullStiffness * this.pullY - this.pullDamping * this.pullVelocity;
+      this.pullVelocity += pullForce * dt;
+      this.pullY += this.pullVelocity * dt;
+      if (this.pullY < 0) {
+        this.pullY = 0;
+        this.pullVelocity = 0;
+      }
+    }
 
-    // 4. Vertical elastic pull tension integration
-    const accelPull = -this.stiffness.pull * (this.pullY - this.targetPullY) - this.damping.pull * this.pullVelocity;
-    this.pullVelocity += accelPull * dt;
-    this.pullY = Math.max(0, this.pullY + this.pullVelocity * dt);
+    const isTensionHigh = this.pullY >= this.pullThreshold * 0.85;
 
     return {
       rotation: this.rotation,
       pullY: this.pullY,
-      isTensionHigh: this.pullY > this.pullThreshold * 0.7,
+      isTensionHigh,
     };
   }
 }
-
-function THREE_MATH_CLAMP(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-

@@ -4,17 +4,16 @@ import * as THREE from 'three';
 import { createTagGeometry, createTagFrontTexture, createTagBackTexture, TAG_DIMENSIONS } from './TagGeometry';
 import { TagEyelet } from './TagEyelet';
 import { TagPhysics } from './TagPhysics';
-import logoPng from '../../assets/Logo.png';
 
-const BASE_SUSPENSION_Y = 0.9;
+const BASE_SUSPENSION_Y = 1.0;
 
 /**
  * HangingTag
  * The physical 3D fashion tag suspended in space:
- * - Suspended at natural center eyelet pivot
- * - Genuine through-hole geometric cutout
- * - Real-time pointer/touch dragging with elastic pull-down threshold detection
- * - Preserves authentic ZFITs branding on front and clean tactile back face
+ * - Dominant screen presence with true extruded 3D thickness and bevels
+ * - Point-of-interaction torque physics: dragging different corners creates natural 3D rotation & twist
+ * - High-contrast brilliant pure white ZFITs logo
+ * - Realistic metallic eyelet embedded at the suspension pivot
  */
 export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, isInteractingRef }) {
   const physicsGroupRef = useRef(null);
@@ -22,52 +21,35 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   const dragPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
   const planeIntersectPoint = useRef(new THREE.Vector3());
   const dragStartPoint = useRef(new THREE.Vector3());
+  const localHitVector = useRef(new THREE.Vector3());
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Initialize the 3-DOF physics simulation instance with a clear, reliable pull threshold
-  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.45 }), []);
+  // Initialize the torque-based 3-DOF rigid-body pendulum
+  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.48 }), []);
 
-  // Construct geometry with genuine through-hole cutout
+  // Construct geometry with genuine through-hole cutout and beveled edges
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
 
-  // Load the authentic original ZFITs logo asset
-  const [logoImage, setLogoImage] = useState(null);
-  useEffect(() => {
-    const img = new Image();
-    img.src = logoPng;
-    img.onload = () => {
-      setLogoImage(img);
-    };
-    img.onerror = () => {
-      setLogoImage(null);
-    };
-  }, []);
+  // Textures: Brilliant white logo on front, luxury authentication on back
+  const frontTexture = useMemo(() => createTagFrontTexture(), []);
+  const backTexture = useMemo(() => createTagBackTexture(), []);
 
-  // Textures and physical materials
-  const frontTexture = useMemo(() => {
-    return createTagFrontTexture(logoImage);
-  }, [logoImage]);
-
-  const backTexture = useMemo(() => {
-    return createTagBackTexture();
-  }, []);
-
-  // Front & side material for the main extruded card body
+  // Luxury cardstock material: MeshPhysicalMaterial with tuned clearcoat for satin sheen
   const tagMaterial = useMemo(() => {
     return new THREE.MeshPhysicalMaterial({
       map: frontTexture,
-      color: '#ff0404ff',
-      roughness: 0.55,
-      metalness: 0.05,
-      clearcoat: 0.15,
-      clearcoatRoughness: 0.18,
-      reflectivity: 0.6,
+      color: '#141418',
+      roughness: 0.52,
+      metalness: 0.08,
+      clearcoat: 0.42,
+      clearcoatRoughness: 0.22,
+      reflectivity: 0.72,
     });
   }, [frontTexture]);
 
-  // Pointer drag calculations using 3D raycasting onto a depth plane
+  // Pointer drag calculations using 3D raycasting onto depth plane
   const getPointerWorldPos = (e) => {
     const raycaster = e.ray;
     raycaster.ray.intersectPlane(dragPlaneRef.current, planeIntersectPoint.current);
@@ -81,9 +63,17 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
     setIsDragging(true);
     if (isInteractingRef) isInteractingRef.current = true;
 
+    // Calculate local hit point on the card relative to the eyelet pivot
+    if (physicsGroupRef.current && e.point) {
+      localHitVector.current.copy(e.point);
+      physicsGroupRef.current.worldToLocal(localHitVector.current);
+    } else {
+      localHitVector.current.set(0, -1.3, 0);
+    }
+
     const pos = getPointerWorldPos(e);
     dragStartPoint.current.copy(pos);
-    physics.startDrag(e.clientX, e.clientY);
+    physics.startDrag(e.clientX, e.clientY, localHitVector.current);
   };
 
   const handlePointerMove = (e) => {
@@ -136,12 +126,12 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
 
     const { rotation, pullY, isTensionHigh } = physics.step(delta, state.clock.getElapsedTime());
 
-    // Apply the 3 independent degrees of freedom to the physics group
-    physicsGroupRef.current.rotation.x = rotation.x; // Pitch
-    physicsGroupRef.current.rotation.y = rotation.y; // Twist
-    physicsGroupRef.current.rotation.z = rotation.z; // Sway (Roll)
+    // Apply the 3 independent rotational degrees of freedom
+    physicsGroupRef.current.rotation.x = rotation.x; // Pitch (tilt forward/back)
+    physicsGroupRef.current.rotation.y = rotation.y; // Yaw (twist around cord)
+    physicsGroupRef.current.rotation.z = rotation.z; // Roll (pendulum sway)
 
-    // Apply vertical pull displacement from base suspension anchor
+    // Apply downward pull displacement
     physicsGroupRef.current.position.y = BASE_SUSPENSION_Y - pullY;
 
     if (onTensionChange) {
@@ -176,7 +166,7 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
 
         {/* Rear Face Texture Plate to ensure proper appearance from the back */}
         <mesh position={[0, 0, -TAG_DIMENSIONS.depth * 0.5 - 0.002]} rotation={[0, Math.PI, 0]}>
-          <planeGeometry args={[TAG_DIMENSIONS.width * 0.9, TAG_DIMENSIONS.height * 0.85]} />
+          <planeGeometry args={[TAG_DIMENSIONS.width * 0.92, TAG_DIMENSIONS.height * 0.88]} />
           <meshBasicMaterial map={backTexture} transparent opacity={0.92} depthWrite={false} />
         </mesh>
       </group>

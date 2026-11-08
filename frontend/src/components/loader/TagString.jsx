@@ -3,8 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 const SEGMENTS = 40;
-const RADIAL_SEGMENTS = 6;
-const TUBE_RADIUS = 0.012;
+const RADIAL_SEGMENTS = 8;
+const TUBE_RADIUS = 0.016;
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
 // Module-level static scratch instances to guarantee 0 bytes GC per frame
@@ -16,7 +16,7 @@ const SCRATCH = {
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  ceilingAnchor: new THREE.Vector3(0, 3.6, 0),
+  ceilingAnchor: new THREE.Vector3(0, 3.5, 0),
 };
 
 /**
@@ -69,13 +69,13 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
   eyeletMesh.getWorldPosition(eyeletPos);
   stringMesh.worldToLocal(eyeletPos);
 
-  // 2. Realistic gravitational sag calculation
+  // 2. Realistic gravitational sag & tension calculation
   const deltaX = eyeletPos.x - ceilingAnchor.x;
   const deltaZ = eyeletPos.z - ceilingAnchor.z;
   midPoint.set(
-    (ceilingAnchor.x + eyeletPos.x) * 0.5 - deltaX * 0.08,
+    (ceilingAnchor.x + eyeletPos.x) * 0.5 - deltaX * 0.06,
     (ceilingAnchor.y + eyeletPos.y) * 0.5,
-    (ceilingAnchor.z + eyeletPos.z) * 0.5 - deltaZ * 0.08
+    (ceilingAnchor.z + eyeletPos.z) * 0.5 - deltaZ * 0.06
   );
 
   // 3. Update spline control points in-place
@@ -127,16 +127,16 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
  * TagString
  * Dynamic braided hanging string that connects the ceiling anchor to the tag's eyelet.
  */
-export function TagString({ eyeletRef, ceilingY = 3.6 }) {
+export function TagString({ eyeletRef, ceilingY = 3.5 }) {
   const meshRef = useRef(null);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#111114',
-      roughness: 0.88,
-      metalness: 0.08,
+      color: '#101013',
+      roughness: 0.85,
+      metalness: 0.1,
     });
   }, []);
 

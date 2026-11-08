@@ -2,21 +2,28 @@ import * as THREE from 'three';
 
 /**
  * Tag Dimensions and Geometry Specification:
- * Scaled proportionally to match luxury hanging fashion tag references.
- * Height 2.8, Width 1.4 (Aspect ratio 1:2)
+ * - Dominates screen: Height 2.6, Width 1.25 (Aspect ratio 1:2.08)
+ * - Physical thickness: 0.08 units with 0.022 bevels -> clearly visible 3D profile
+ * - Signature diagonal chamfers at Top-Left and Bottom-Right
+ * - Smoothly rounded Top-Right and Bottom-Left corners
+ * - Genuine through-hole geometric cutout
  */
 export const TAG_DIMENSIONS = {
-  width: 1.4,
-  height: 2.8,
-  depth: 0.05,
-  cornerRadius: 0.10,
-  chamfer: 0.28,
-  holeRadius: 0.08,
-  holeOffsetY: 0.30, // Distance from top edge to hole center
-  bevelThickness: 0.015,
-  bevelSize: 0.015,
-  bevelSegments: 3,
+  width: 1.25,
+  height: 2.6,
+  depth: 0.08,
+  cornerRadius: 0.12,
+  chamfer: 0.32,
+  holeRadius: 0.075,
+  holeOffsetY: 0.28, // Distance from top edge to hole center
+  bevelThickness: 0.022,
+  bevelSize: 0.022,
+  bevelSegments: 4,
 };
+
+// Exact original ZFITs SVG logo mark path from assets/logo-mark.svg
+const Z_LOGO_SVG_PATH =
+  'M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z';
 
 /**
  * Creates the outer shape with signature chamfers, rounded corners,
@@ -86,7 +93,7 @@ export function createTagGeometry() {
 
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
-  // Center geometry along Z axis
+  // Center geometry along Z axis so (x, y) stays clean for local rotation
   geometry.computeBoundingBox();
   const zOffset = -(depth + bevelThickness * 2) / 2;
   geometry.translate(0, 0, zOffset);
@@ -110,10 +117,12 @@ export function createTagGeometry() {
 }
 
 /**
- * Generates the high-resolution front texture preserving the original ZFITs logo mark
- * without distortion or extra text.
+ * Generates the high-resolution front texture with PURE WHITE high-contrast ZFITs branding:
+ * - Exact vector ZFITs emblem path rendered with Path2D
+ * - Crisp bold typographic wordmark ZFITS.
+ * - Tactile matte black cardstock surface
  */
-export function createTagFrontTexture(logoImage = null) {
+export function createTagFrontTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 2048;
@@ -121,45 +130,61 @@ export function createTagFrontTexture(logoImage = null) {
 
   if (!ctx) return new THREE.Texture();
 
-  // 1. Matte Luxury Obsidian Base
-  ctx.fillStyle = '#0f0f12';
+  // 1. Matte Luxury Obsidian Cardstock Base
+  ctx.fillStyle = '#0f0f13';
   ctx.fillRect(0, 0, 1024, 2048);
 
-  // 2. Subtle luxury cardstock grain (fast noise)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
-  for (let i = 0; i < 4000; i++) {
+  // 2. Micro-surface texture (tactile paperboard stippling)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.028)';
+  for (let i = 0; i < 5000; i++) {
     const gx = Math.random() * 1024;
     const gy = Math.random() * 2048;
     ctx.fillRect(gx, gy, 1.5, 1.5);
   }
 
   // 3. Subtle debossed frame border matching chamfered silhouette
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
   ctx.lineWidth = 3;
   ctx.strokeRect(60, 60, 904, 1928);
 
-  // 4. Draw the authentic original ZFITs Logo
-  if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
-    const logoW = 580;
-    const aspect = logoImage.naturalHeight / logoImage.naturalWidth;
-    const logoH = logoW * aspect;
-    const logoX = (1024 - logoW) / 2;
-    const logoY = 1024 - logoH / 2 + 120; // Centered vertically below eyelet zone
+  // 4. Render the authentic original ZFITs SVG Logo in PURE BRILLIANT WHITE
+  ctx.save();
 
+  // Draw the SVG Mark using Path2D
+  try {
+    const path = new Path2D(Z_LOGO_SVG_PATH);
     ctx.save();
-    ctx.drawImage(logoImage, logoX, logoY, logoW, logoH);
-    ctx.restore();
-  } else {
-    // Clean typographic logo fallback
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    // Center of canvas: 512, Y: 920. Scale from 48x46 viewBox to 240x230
+    const scale = 5.2;
+    ctx.translate(512 - (48 * scale) / 2, 850 - (46 * scale) / 2);
+    ctx.scale(scale, scale);
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '800 130px "Haas Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.letterSpacing = '-3px';
-    ctx.fillText('ZFITS.', 512, 1080);
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.25)';
+    ctx.shadowBlur = 12;
+    ctx.fill(path);
     ctx.restore();
+  } catch {
+    // Fallback if Path2D not available
   }
+
+  // Draw the original ZFITs bold wordmark beneath the mark
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+  ctx.shadowBlur = 10;
+  ctx.font = '800 135px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Haas Regular", sans-serif';
+  ctx.letterSpacing = '-2px';
+  ctx.fillText('ZFITS.', 512, 1160);
+
+  // Subtle luxury subtitle
+  ctx.font = '600 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.letterSpacing = '12px';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.shadowBlur = 0;
+  ctx.fillText('AI PERSONAL STYLIST', 512, 1270);
+
+  ctx.restore();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -178,16 +203,28 @@ export function createTagBackTexture() {
 
   if (!ctx) return new THREE.Texture();
 
-  ctx.fillStyle = '#0f0f12';
+  ctx.fillStyle = '#0f0f13';
   ctx.fillRect(0, 0, 1024, 2048);
 
-  // Subtle rear watermark
+  // Subtle tactile grain
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+  for (let i = 0; i < 4000; i++) {
+    ctx.fillRect(Math.random() * 1024, Math.random() * 2048, 1.5, 1.5);
+  }
+
+  // Subtle rear authentication seal
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.font = '700 80px "Haas Regular", system-ui, sans-serif';
-  ctx.fillText('ZFITS.', 512, 1080);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.font = '700 90px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.letterSpacing = '6px';
+  ctx.fillText('ZFITS STUDIO', 512, 1060);
+
+  ctx.font = '500 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.letterSpacing = '14px';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
+  ctx.fillText('EDITION 01 // BESPOKE', 512, 1150);
   ctx.restore();
 
   const texture = new THREE.CanvasTexture(canvas);
