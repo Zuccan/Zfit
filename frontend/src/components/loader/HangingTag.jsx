@@ -2,111 +2,127 @@ import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createTagGeometry, createTagFrontTexture, createTagBackTexture, TAG_DIMENSIONS } from './TagGeometry';
-import { TagEyelet } from './TagEyelet';
 import { TagPhysics } from './TagPhysics';
 
-const BASE_SUSPENSION_Y = 1.0;
+const BASE_SUSPENSION_Y = 0.85;
 
 /**
  * HangingTag
- * The physical 3D fashion tag suspended in space:
- * - Dominant screen presence with true extruded 3D thickness and bevels
- * - Point-of-interaction torque physics: dragging different corners creates natural 3D rotation & twist
- * - High-contrast brilliant pure white ZFITs logo
- * - Realistic metallic eyelet embedded at the suspension pivot
+ * Authentic off-white luxury fashion hang tag suspended in 3D:
+ * - Premium ivory paper (#F3F0E9) with visible darker paperboard sidewall thickness
+ * - Clean circular punched hole (no metallic eyelet) with black cord looping through
+ * - Exact dark charcoal ZFITs SVG logo
+ * - Bulletproof window-bound pointer interaction with correct screen-to-world torque dynamics
  */
 export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, isInteractingRef }) {
   const physicsGroupRef = useRef(null);
   const tagMeshRef = useRef(null);
-  const dragPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
-  const planeIntersectPoint = useRef(new THREE.Vector3());
-  const dragStartPoint = useRef(new THREE.Vector3());
   const localHitVector = useRef(new THREE.Vector3());
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   // Initialize the torque-based 3-DOF rigid-body pendulum
-  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.48 }), []);
+  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.42 }), []);
 
-  // Construct geometry with genuine through-hole cutout and beveled edges
+  // Construct geometry with genuine circular punched hole
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
 
-  // Textures: Brilliant white logo on front, luxury authentication on back
+  // Textures: High-contrast dark charcoal logo on warm ivory paper
   const frontTexture = useMemo(() => createTagFrontTexture(), []);
   const backTexture = useMemo(() => createTagBackTexture(), []);
 
-  // Luxury cardstock material: MeshPhysicalMaterial with tuned clearcoat for satin sheen
-  const tagMaterial = useMemo(() => {
-    return new THREE.MeshPhysicalMaterial({
+  // Multi-material setup:
+  // Material 0 (Front/Back faces): Warm ivory paper with satin sheen
+  // Material 1 (Sidewalls & Bevels): Authentic slightly deeper paperboard core for visible 3D thickness
+  const materials = useMemo(() => {
+    const faceMaterial = new THREE.MeshPhysicalMaterial({
       map: frontTexture,
-      color: '#141418',
-      roughness: 0.52,
-      metalness: 0.08,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.22,
-      reflectivity: 0.72,
+      color: '#F3F0E9',
+      roughness: 0.62,
+      metalness: 0.02,
+      clearcoat: 0.14,
+      clearcoatRoughness: 0.35,
+      reflectivity: 0.5,
     });
+
+    const sidewallMaterial = new THREE.MeshPhysicalMaterial({
+      color: '#D8D3C8', // Deeper paperboard core highlighting physical depth
+      roughness: 0.78,
+      metalness: 0.01,
+      clearcoat: 0.0,
+    });
+
+    return [faceMaterial, sidewallMaterial];
   }, [frontTexture]);
 
-  // Pointer drag calculations using 3D raycasting onto depth plane
-  const getPointerWorldPos = (e) => {
-    const raycaster = e.ray;
-    raycaster.ray.intersectPlane(dragPlaneRef.current, planeIntersectPoint.current);
-    return planeIntersectPoint.current;
-  };
+  // Black braided cord knot/loop material that secures the tag through the punched hole
+  const cordLoopMaterial = useMemo(() => {
+    return new THREE.MeshStandardMaterial({
+      color: '#121215',
+      roughness: 0.88,
+      metalness: 0.08,
+    });
+  }, []);
 
+  // Torus geometry simulating the cord loop wrapping through the punched hole
+  const cordLoopGeometry = useMemo(() => {
+    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.95, 0.016, 12, 28);
+  }, []);
+
+  // Bulletproof Pointer Interaction Handling
   const handlePointerDown = (e) => {
     e.stopPropagation();
-    e.target.setPointerCapture(e.pointerId);
 
     setIsDragging(true);
     if (isInteractingRef) isInteractingRef.current = true;
 
-    // Calculate local hit point on the card relative to the eyelet pivot
+    // Calculate local hit point relative to suspension eyelet
     if (physicsGroupRef.current && e.point) {
       localHitVector.current.copy(e.point);
       physicsGroupRef.current.worldToLocal(localHitVector.current);
     } else {
-      localHitVector.current.set(0, -1.3, 0);
+      localHitVector.current.set(0, -1.0, 0);
     }
 
-    const pos = getPointerWorldPos(e);
-    dragStartPoint.current.copy(pos);
+    const startX = e.clientX;
+    const startY = e.clientY;
     physics.startDrag(e.clientX, e.clientY, localHitVector.current);
+
+    // Global window listeners guarantee every drag motion & release is captured
+    const onWindowPointerMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const worldScale = 0.0035;
+
+      // Screen X increases to right -> World +X
+      // Screen Y increases downwards -> World -Y (inverted!)
+      const deltaWorldX = dx * worldScale;
+      const deltaWorldY = -dy * worldScale;
+
+      physics.updateDrag(ev.clientX, ev.clientY, deltaWorldX, deltaWorldY);
+    };
+
+    const onWindowPointerUp = () => {
+      window.removeEventListener('pointermove', onWindowPointerMove);
+      window.removeEventListener('pointerup', onWindowPointerUp);
+      window.removeEventListener('pointercancel', onWindowPointerUp);
+
+      setIsDragging(false);
+      if (isInteractingRef) isInteractingRef.current = false;
+
+      const wasDeliberatePull = physics.release();
+      if (wasDeliberatePull && onPullTrigger) {
+        onPullTrigger();
+      }
+    };
+
+    window.addEventListener('pointermove', onWindowPointerMove, { passive: true });
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerUp);
   };
 
-  const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    e.stopPropagation();
-
-    const currentPos = getPointerWorldPos(e);
-    const deltaX = currentPos.x - dragStartPoint.current.x;
-    const deltaY = currentPos.y - dragStartPoint.current.y;
-
-    physics.updateDrag(e.clientX, e.clientY, deltaX, deltaY);
-  };
-
-  const handlePointerUp = (e) => {
-    if (!isDragging) return;
-    e.stopPropagation();
-    try {
-      e.target.releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-
-    setIsDragging(false);
-    if (isInteractingRef) isInteractingRef.current = false;
-
-    // Check if user exceeded the deliberate downward pull threshold
-    const wasDeliberatePull = physics.release();
-    if (wasDeliberatePull && onPullTrigger) {
-      onPullTrigger();
-    }
-  };
-
-  // Synchronize cursor styling
+  // Cursor styling synchronization
   useEffect(() => {
     if (isDragging) {
       document.body.style.cursor = 'grabbing';
@@ -127,11 +143,11 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
     const { rotation, pullY, isTensionHigh } = physics.step(delta, state.clock.getElapsedTime());
 
     // Apply the 3 independent rotational degrees of freedom
-    physicsGroupRef.current.rotation.x = rotation.x; // Pitch (tilt forward/back)
+    physicsGroupRef.current.rotation.x = rotation.x; // Pitch
     physicsGroupRef.current.rotation.y = rotation.y; // Yaw (twist around cord)
     physicsGroupRef.current.rotation.z = rotation.z; // Roll (pendulum sway)
 
-    // Apply downward pull displacement
+    // Apply vertical displacement from base suspension anchor
     physicsGroupRef.current.position.y = BASE_SUSPENSION_Y - pullY;
 
     if (onTensionChange) {
@@ -140,34 +156,36 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   });
 
   return (
-    // PIVOT: Eyelet suspension point at BASE_SUSPENSION_Y
+    // PIVOT: Punched hole suspension pivot at BASE_SUSPENSION_Y
     <group ref={physicsGroupRef} position={[0, BASE_SUSPENSION_Y, 0]}>
-      {/* Eyelet Anchor Ref for Dynamic String Connection Tracking */}
+      {/* Dynamic String Tracking Anchor right at the center of the punched hole */}
       <group ref={eyeletAnchorRef} position={[0, 0, 0]} />
 
-      {/* 3D Metallic Eyelet Lining the Punched Hole */}
-      <TagEyelet holeY={0} />
+      {/* Realistic black cord loop passing directly through the punched hole (NO metal grommet) */}
+      <mesh
+        geometry={cordLoopGeometry}
+        material={cordLoopMaterial}
+        position={[0, 0, 0]}
+        castShadow
+      />
 
-      {/* Tag Mesh offset so eyelet hole is precisely at (0, 0, 0) local pivot */}
+      {/* Tag Mesh offset so the punched hole sits precisely at (0, 0, 0) local pivot */}
       <group position={[0, -holeY, 0]}>
         <mesh
           ref={tagMeshRef}
           geometry={tagGeometry}
-          material={tagMaterial}
+          material={materials}
           castShadow
           receiveShadow
           onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
           onPointerOver={() => setIsHovered(true)}
           onPointerOut={() => setIsHovered(false)}
         />
 
-        {/* Rear Face Texture Plate to ensure proper appearance from the back */}
+        {/* Clean Rear Face Plate ensuring crisp typography from behind */}
         <mesh position={[0, 0, -TAG_DIMENSIONS.depth * 0.5 - 0.002]} rotation={[0, Math.PI, 0]}>
-          <planeGeometry args={[TAG_DIMENSIONS.width * 0.92, TAG_DIMENSIONS.height * 0.88]} />
-          <meshBasicMaterial map={backTexture} transparent opacity={0.92} depthWrite={false} />
+          <planeGeometry args={[TAG_DIMENSIONS.width * 0.92, TAG_DIMENSIONS.height * 0.9]} />
+          <meshBasicMaterial map={backTexture} transparent opacity={0.96} depthWrite={false} />
         </mesh>
       </group>
     </group>

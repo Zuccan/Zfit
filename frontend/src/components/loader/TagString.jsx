@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 const SEGMENTS = 40;
 const RADIAL_SEGMENTS = 8;
-const TUBE_RADIUS = 0.016;
+const TUBE_RADIUS = 0.015;
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
 // Module-level static scratch instances to guarantee 0 bytes GC per frame
@@ -16,7 +16,7 @@ const SCRATCH = {
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  ceilingAnchor: new THREE.Vector3(0, 3.5, 0),
+  ceilingAnchor: new THREE.Vector3(0, 3.2, 0),
 };
 
 /**
@@ -125,18 +125,18 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
 
 /**
  * TagString
- * Dynamic braided hanging string that connects the ceiling anchor to the tag's eyelet.
+ * Dynamic braided hanging string that connects the ceiling anchor to the tag's punched hole.
  */
-export function TagString({ eyeletRef, ceilingY = 3.5 }) {
+export function TagString({ eyeletRef, ceilingY = 3.2 }) {
   const meshRef = useRef(null);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#101013',
-      roughness: 0.85,
-      metalness: 0.1,
+      color: '#121215',
+      roughness: 0.88,
+      metalness: 0.08,
     });
   }, []);
 
