@@ -162,10 +162,7 @@ export function ZfitsLoader({
           <span className="zfits-hud-slash">/</span>
           <span className="zfits-hud-subtitle">AI PERSONAL STYLIST</span>
         </div>
-        <div className="zfits-hud-status">
-          <span className="zfits-hud-dot" />
-          <span className="zfits-hud-state">VIRTUAL STUDIO ACTIVE</span>
-        </div>
+        
       </header>
 
       {/* LAYER 1 & 2: Environmental Background Canvas & Lighting */}
