@@ -6,11 +6,13 @@ import { TagEyelet } from './TagEyelet';
 import { TagPhysics } from './TagPhysics';
 import logoPng from '../../assets/Logo.png';
 
+const BASE_SUSPENSION_Y = 0.9;
+
 /**
  * HangingTag
  * The physical 3D fashion tag suspended in space:
+ * - Suspended at natural center eyelet pivot
  * - Genuine through-hole geometric cutout
- * - Clear hierarchical separation between GSAP entrance/exit and 3-DOF spring physics
  * - Real-time pointer/touch dragging with elastic pull-down threshold detection
  * - Preserves authentic ZFITs branding on front and clean tactile back face
  */
@@ -24,8 +26,8 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Initialize the 3-DOF physics simulation instance
-  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.6 }), []);
+  // Initialize the 3-DOF physics simulation instance with a clear, reliable pull threshold
+  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.45 }), []);
 
   // Construct geometry with genuine through-hole cutout
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
@@ -39,7 +41,6 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
       setLogoImage(img);
     };
     img.onerror = () => {
-      // Fall back to clean typographic logo
       setLogoImage(null);
     };
   }, []);
@@ -57,12 +58,12 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   const tagMaterial = useMemo(() => {
     return new THREE.MeshPhysicalMaterial({
       map: frontTexture,
-      color: '#0e0e11',
-      roughness: 0.65,
-      metalness: 0.04,
-      clearcoat: 0.12,
+      color: '#ff0404ff',
+      roughness: 0.55,
+      metalness: 0.05,
+      clearcoat: 0.15,
       clearcoatRoughness: 0.18,
-      reflectivity: 0.5,
+      reflectivity: 0.6,
     });
   }, [frontTexture]);
 
@@ -140,8 +141,8 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
     physicsGroupRef.current.rotation.y = rotation.y; // Twist
     physicsGroupRef.current.rotation.z = rotation.z; // Sway (Roll)
 
-    // Apply vertical pull displacement
-    physicsGroupRef.current.position.y = -pullY;
+    // Apply vertical pull displacement from base suspension anchor
+    physicsGroupRef.current.position.y = BASE_SUSPENSION_Y - pullY;
 
     if (onTensionChange) {
       onTensionChange(isTensionHigh);
@@ -149,10 +150,16 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   });
 
   return (
-    // PIVOT: Rotating around suspension point
-    <group ref={physicsGroupRef}>
-      {/* Visual Tag Mesh offset so it hangs naturally below the pivot */}
-      <group position={[0, -TAG_DIMENSIONS.height * 0.45, 0]}>
+    // PIVOT: Eyelet suspension point at BASE_SUSPENSION_Y
+    <group ref={physicsGroupRef} position={[0, BASE_SUSPENSION_Y, 0]}>
+      {/* Eyelet Anchor Ref for Dynamic String Connection Tracking */}
+      <group ref={eyeletAnchorRef} position={[0, 0, 0]} />
+
+      {/* 3D Metallic Eyelet Lining the Punched Hole */}
+      <TagEyelet holeY={0} />
+
+      {/* Tag Mesh offset so eyelet hole is precisely at (0, 0, 0) local pivot */}
+      <group position={[0, -holeY, 0]}>
         <mesh
           ref={tagMeshRef}
           geometry={tagGeometry}
@@ -169,15 +176,9 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
 
         {/* Rear Face Texture Plate to ensure proper appearance from the back */}
         <mesh position={[0, 0, -TAG_DIMENSIONS.depth * 0.5 - 0.002]} rotation={[0, Math.PI, 0]}>
-          <planeGeometry args={[TAG_DIMENSIONS.width * 0.9, TAG_DIMENSIONS.height * 0.8]} />
+          <planeGeometry args={[TAG_DIMENSIONS.width * 0.9, TAG_DIMENSIONS.height * 0.85]} />
           <meshBasicMaterial map={backTexture} transparent opacity={0.92} depthWrite={false} />
         </mesh>
-
-        {/* 3D Metallic Eyelet Lining the Punched Hole */}
-        <TagEyelet holeY={holeY} />
-
-        {/* Eyelet Anchor Ref for Dynamic String Connection Tracking */}
-        <group ref={eyeletAnchorRef} position={[0, holeY, 0]} />
       </group>
     </group>
   );

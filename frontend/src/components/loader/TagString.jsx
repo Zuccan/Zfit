@@ -4,21 +4,19 @@ import * as THREE from 'three';
 
 const SEGMENTS = 40;
 const RADIAL_SEGMENTS = 6;
-const TUBE_RADIUS = 0.014;
+const TUBE_RADIUS = 0.012;
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
 // Module-level static scratch instances to guarantee 0 bytes GC per frame
 const SCRATCH = {
   eyeletPos: new THREE.Vector3(),
-  eyeletQuat: new THREE.Quaternion(),
-  forwardVec: new THREE.Vector3(),
   midPoint: new THREE.Vector3(),
   tangent: new THREE.Vector3(),
   normal: new THREE.Vector3(),
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  ceilingAnchor: new THREE.Vector3(0, 4.2, 0),
+  ceilingAnchor: new THREE.Vector3(0, 3.6, 0),
 };
 
 /**
@@ -53,10 +51,9 @@ function createCordBufferState() {
 /**
  * Updates vertex and normal coordinates in-place for the dynamic Catmull-Rom cord.
  */
-function updateCordGeometry(spline, bufferState, eyeletMesh, ceilingY) {
+function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceilingY) {
   const {
     eyeletPos,
-    eyeletQuat,
     midPoint,
     tangent,
     normal,
@@ -68,9 +65,9 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, ceilingY) {
 
   ceilingAnchor.set(0, ceilingY, 0);
 
-  // 1. World coordinates of the eyelet
+  // 1. World coordinates of the eyelet, transformed into string mesh local space
   eyeletMesh.getWorldPosition(eyeletPos);
-  eyeletMesh.getWorldQuaternion(eyeletQuat);
+  stringMesh.worldToLocal(eyeletPos);
 
   // 2. Realistic gravitational sag calculation
   const deltaX = eyeletPos.x - ceilingAnchor.x;
@@ -130,14 +127,14 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, ceilingY) {
  * TagString
  * Dynamic braided hanging string that connects the ceiling anchor to the tag's eyelet.
  */
-export function TagString({ eyeletRef, ceilingY = 4.2 }) {
+export function TagString({ eyeletRef, ceilingY = 3.6 }) {
   const meshRef = useRef(null);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#141416',
+      color: '#111114',
       roughness: 0.88,
       metalness: 0.08,
     });
@@ -158,7 +155,7 @@ export function TagString({ eyeletRef, ceilingY = 4.2 }) {
 
   useFrame(() => {
     if (!eyeletRef.current || !meshRef.current) return;
-    updateCordGeometry(spline, bufferState, eyeletRef.current, ceilingY);
+    updateCordGeometry(spline, bufferState, eyeletRef.current, meshRef.current, ceilingY);
   });
 
   return (

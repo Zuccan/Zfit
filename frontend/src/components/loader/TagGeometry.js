@@ -2,24 +2,20 @@ import * as THREE from 'three';
 
 /**
  * Tag Dimensions and Geometry Specification:
- * - Width: 2.3
- * - Height: 4.6
- * - Top-Left: Diagonal chamfer
- * - Bottom-Right: Diagonal chamfer
- * - Top-Right & Bottom-Left: Subtly rounded corners
- * - Hanging hole: Genuine geometric cutout using THREE.Shape.holes and THREE.Path
+ * Scaled proportionally to match luxury hanging fashion tag references.
+ * Height 2.8, Width 1.4 (Aspect ratio 1:2)
  */
 export const TAG_DIMENSIONS = {
-  width: 2.3,
-  height: 4.6,
-  depth: 0.08,
-  cornerRadius: 0.18,
-  chamfer: 0.48,
-  holeRadius: 0.14,
-  holeOffsetY: 0.52, // Distance from top edge to hole center
-  bevelThickness: 0.02,
-  bevelSize: 0.02,
-  bevelSegments: 4,
+  width: 1.4,
+  height: 2.8,
+  depth: 0.05,
+  cornerRadius: 0.10,
+  chamfer: 0.28,
+  holeRadius: 0.08,
+  holeOffsetY: 0.30, // Distance from top edge to hole center
+  bevelThickness: 0.015,
+  bevelSize: 0.015,
+  bevelSegments: 3,
 };
 
 /**
@@ -63,7 +59,7 @@ export function createTagShape() {
   // Genuine through-hole geometric cutout
   const hole = new THREE.Path();
   const holeY = hh - holeOffsetY;
-  // Clockwise winding for hole cutout in Three.js
+  // Clockwise winding for cutout in Three.js
   hole.absarc(0, holeY, holeRadius, 0, Math.PI * 2, true);
   shape.holes.push(hole);
 
@@ -71,11 +67,12 @@ export function createTagShape() {
 }
 
 /**
- * Creates the extruded tag geometry with beveled physical edges.
+ * Creates the extruded tag geometry with beveled physical edges
+ * and normalized UV coordinates for texture mapping.
  */
 export function createTagGeometry() {
   const { shape, holeY } = createTagShape();
-  const { depth, bevelThickness, bevelSize, bevelSegments } = TAG_DIMENSIONS;
+  const { depth, bevelThickness, bevelSize, bevelSegments, width: w, height: h } = TAG_DIMENSIONS;
 
   const extrudeSettings = {
     steps: 1,
@@ -89,10 +86,24 @@ export function createTagGeometry() {
 
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
-  // Center geometry along Z axis so (x, y) stays clean for local rotation
+  // Center geometry along Z axis
   geometry.computeBoundingBox();
   const zOffset = -(depth + bevelThickness * 2) / 2;
   geometry.translate(0, 0, zOffset);
+
+  // Normalize UV coordinates so texture maps across the face [0, 1]
+  const uv = geometry.attributes.uv;
+  if (uv) {
+    const hw = w / 2;
+    const hh = h / 2;
+    for (let i = 0; i < uv.count; i++) {
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      uv.setXY(i, (u + hw) / w, (v + hh) / h);
+    }
+    uv.needsUpdate = true;
+  }
+
   geometry.computeVertexNormals();
 
   return { geometry, holeY };
@@ -100,57 +111,53 @@ export function createTagGeometry() {
 
 /**
  * Generates the high-resolution front texture preserving the original ZFITs logo mark
- * and brand geometry without extraneous text.
+ * without distortion or extra text.
  */
 export function createTagFrontTexture(logoImage = null) {
   const canvas = document.createElement('canvas');
-  canvas.width = 2048;
+  canvas.width = 1024;
   canvas.height = 2048;
   const ctx = canvas.getContext('2d');
 
   if (!ctx) return new THREE.Texture();
 
   // 1. Matte Luxury Obsidian Base
-  ctx.fillStyle = '#0c0c0e';
-  ctx.fillRect(0, 0, 2048, 2048);
+  ctx.fillStyle = '#0f0f12';
+  ctx.fillRect(0, 0, 1024, 2048);
 
-  // 2. Micro-surface texture (luxury paper/cardstock tactile stippling)
-  const imgData = ctx.getImageData(0, 0, 2048, 2048);
-  const data = imgData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const grain = (Math.random() - 0.5) * 8;
-    data[i] = Math.max(0, Math.min(255, data[i] + grain));
-    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + grain));
-    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + grain + 2));
+  // 2. Subtle luxury cardstock grain (fast noise)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+  for (let i = 0; i < 4000; i++) {
+    const gx = Math.random() * 1024;
+    const gy = Math.random() * 2048;
+    ctx.fillRect(gx, gy, 1.5, 1.5);
   }
-  ctx.putImageData(imgData, 0, 0);
 
   // 3. Subtle debossed frame border matching chamfered silhouette
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(120, 120, 1808, 1808);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(60, 60, 904, 1928);
 
   // 4. Draw the authentic original ZFITs Logo
   if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
-    const logoW = 760;
+    const logoW = 580;
     const aspect = logoImage.naturalHeight / logoImage.naturalWidth;
     const logoH = logoW * aspect;
-    const logoX = (2048 - logoW) / 2;
-    const logoY = 1024 - logoH / 2 + 100; // Centered vertically below eyelet zone
+    const logoX = (1024 - logoW) / 2;
+    const logoY = 1024 - logoH / 2 + 120; // Centered vertically below eyelet zone
 
-    // Draw white logo mark
     ctx.save();
     ctx.drawImage(logoImage, logoX, logoY, logoW, logoH);
     ctx.restore();
   } else {
-    // Elegant fallback rendering authentic ZFITs typographic logo
+    // Clean typographic logo fallback
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '800 160px "Haas Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.letterSpacing = '-4px';
-    ctx.fillText('ZFITS.', 1024, 1060);
+    ctx.font = '800 130px "Haas Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.letterSpacing = '-3px';
+    ctx.fillText('ZFITS.', 512, 1080);
     ctx.restore();
   }
 
@@ -166,13 +173,13 @@ export function createTagFrontTexture(logoImage = null) {
 export function createTagBackTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.height = 2048;
   const ctx = canvas.getContext('2d');
 
   if (!ctx) return new THREE.Texture();
 
-  ctx.fillStyle = '#0c0c0e';
-  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.fillStyle = '#0f0f12';
+  ctx.fillRect(0, 0, 1024, 2048);
 
   // Subtle rear watermark
   ctx.save();
@@ -180,7 +187,7 @@ export function createTagBackTexture() {
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.font = '700 80px "Haas Regular", system-ui, sans-serif';
-  ctx.fillText('ZFITS.', 512, 512);
+  ctx.fillText('ZFITS.', 512, 1080);
   ctx.restore();
 
   const texture = new THREE.CanvasTexture(canvas);

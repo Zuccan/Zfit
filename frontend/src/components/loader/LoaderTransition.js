@@ -19,12 +19,12 @@ export const LoaderTransition = {
     });
 
     // Start slightly above viewport with subtle tilt
-    targetGroup.position.y = 3.5;
-    targetGroup.scale.set(0.85, 0.85, 0.85);
+    targetGroup.position.y = 2.0;
+    targetGroup.scale.set(0.92, 0.92, 0.92);
 
     tl.to(targetGroup.position, {
       y: 0,
-      duration: 1.6,
+      duration: 1.3,
       ease: 'power3.out',
     }, 0);
 
@@ -32,7 +32,7 @@ export const LoaderTransition = {
       x: 1,
       y: 1,
       z: 1,
-      duration: 1.4,
+      duration: 1.2,
       ease: 'power2.out',
     }, 0.1);
 
@@ -41,10 +41,7 @@ export const LoaderTransition = {
 
   /**
    * Cinematic exit reveal into the ZFITs hero homepage.
-   * Triggered upon deliberate downward pull & release or manual trigger.
-   * @param {THREE.Group} targetGroup - The master group
-   * @param {HTMLElement} overlayEl - The DOM container element
-   * @param {Object} options
+   * Triggered ONLY when user deliberately pulls down past threshold and releases.
    */
   animateHeroReveal(targetGroup, overlayEl, { onComplete } = {}) {
     const tl = gsap.timeline({
@@ -53,37 +50,28 @@ export const LoaderTransition = {
       },
     });
 
-    // 1. Tag snaps slightly upward and glides seamlessly toward camera
     if (targetGroup) {
       tl.to(targetGroup.position, {
-        y: 1.2,
-        z: 3.5,
-        duration: 0.9,
+        y: 0.8,
+        z: 3.2,
+        duration: 0.85,
         ease: 'power3.in',
       }, 0);
 
       tl.to(targetGroup.scale, {
-        x: 1.4,
-        y: 1.4,
-        z: 1.4,
-        duration: 0.9,
+        x: 1.35,
+        y: 1.35,
+        z: 1.35,
+        duration: 0.85,
         ease: 'power3.in',
-      }, 0);
-
-      tl.to(targetGroup.rotation, {
-        x: '-=0.15',
-        y: '+=0.25',
-        duration: 0.9,
-        ease: 'power2.in',
       }, 0);
     }
 
-    // 2. DOM overlay smooth fade out into the luxury hero background
     if (overlayEl) {
       tl.to(overlayEl, {
         opacity: 0,
         pointerEvents: 'none',
-        duration: 0.75,
+        duration: 0.7,
         ease: 'power2.inOut',
       }, 0.15);
     }
@@ -92,9 +80,7 @@ export const LoaderTransition = {
   },
 
   /**
-   * Fast skip transition for accessibility or user bypass.
-   * @param {HTMLElement} overlayEl
-   * @param {Object} options
+   * Fast skip transition for explicit user click on Skip button.
    */
   animateSkip(overlayEl, { onComplete } = {}) {
     if (!overlayEl) {
@@ -104,7 +90,7 @@ export const LoaderTransition = {
 
     gsap.to(overlayEl, {
       opacity: 0,
-      duration: 0.35,
+      duration: 0.4,
       ease: 'power2.out',
       onComplete,
     });

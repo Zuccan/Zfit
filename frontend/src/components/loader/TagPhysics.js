@@ -165,3 +165,4 @@ export class TagPhysics {
 function THREE_MATH_CLAMP(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+

@@ -9,7 +9,7 @@ import './Loader.css';
  * - Suspended interactive 3D fashion tag in R3F
  * - Authentic ZFITs logo preservation
  * - Independent 3-DOF pendulum physics
- * - Deliberate downward pull-to-enter trigger
+ * - Deliberate downward pull-to-enter trigger (only exits when user pulls tag or clicks skip)
  * - Subtle skip & Escape key accessibility
  */
 export function ZfitsLoader({ onComplete }) {
@@ -20,7 +20,7 @@ export function ZfitsLoader({ onComplete }) {
   const [isTensionHigh, setIsTensionHigh] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
 
-  // Trigger hero reveal when user pulls down past threshold and releases
+  // Trigger hero reveal ONLY when user pulls down past threshold and releases
   const triggerReveal = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
@@ -32,7 +32,7 @@ export function ZfitsLoader({ onComplete }) {
     });
   }, [onComplete]);
 
-  // Fast skip for accessibility or immediate entry
+  // Fast skip if user explicitly chooses to skip
   const handleSkip = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
@@ -44,23 +44,15 @@ export function ZfitsLoader({ onComplete }) {
     });
   }, [onComplete]);
 
-  // Handle keyboard Escape for immediate skip
+  // Handle keyboard Escape for manual skip
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' || e.key === 'Enter') {
+      if (e.key === 'Escape') {
         handleSkip();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSkip]);
-
-  // Honor prefers-reduced-motion accessibility preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mediaQuery.matches) {
-      handleSkip();
-    }
   }, [handleSkip]);
 
   // Once 3D scene mounts and is ready, trigger smooth entrance drop
