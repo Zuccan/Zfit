@@ -18,13 +18,12 @@ export const LoaderTransition = {
       onComplete,
     });
 
-    // Start slightly above viewport with subtle tilt
-    targetGroup.position.y = 2.0;
-    targetGroup.scale.set(0.92, 0.92, 0.92);
+    targetGroup.position.y = 1.5;
+    targetGroup.scale.set(0.95, 0.95, 0.95);
 
     tl.to(targetGroup.position, {
       y: 0,
-      duration: 1.3,
+      duration: 1.2,
       ease: 'power3.out',
     }, 0);
 
@@ -32,7 +31,7 @@ export const LoaderTransition = {
       x: 1,
       y: 1,
       z: 1,
-      duration: 1.2,
+      duration: 1.1,
       ease: 'power2.out',
     }, 0.1);
 
@@ -52,17 +51,17 @@ export const LoaderTransition = {
 
     if (targetGroup) {
       tl.to(targetGroup.position, {
-        y: 0.8,
-        z: 3.2,
-        duration: 0.85,
+        y: 0.5,
+        z: 2.6,
+        duration: 0.8,
         ease: 'power3.in',
       }, 0);
 
       tl.to(targetGroup.scale, {
-        x: 1.35,
-        y: 1.35,
-        z: 1.35,
-        duration: 0.85,
+        x: 1.25,
+        y: 1.25,
+        z: 1.25,
+        duration: 0.8,
         ease: 'power3.in',
       }, 0);
     }
@@ -71,7 +70,7 @@ export const LoaderTransition = {
       tl.to(overlayEl, {
         opacity: 0,
         pointerEvents: 'none',
-        duration: 0.7,
+        duration: 0.65,
         ease: 'power2.inOut',
       }, 0.15);
     }
@@ -90,7 +89,7 @@ export const LoaderTransition = {
 
     gsap.to(overlayEl, {
       opacity: 0,
-      duration: 0.4,
+      duration: 0.35,
       ease: 'power2.out',
       onComplete,
     });

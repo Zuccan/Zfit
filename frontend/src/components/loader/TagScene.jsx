@@ -25,39 +25,39 @@ function TagSceneContent({
 
   return (
     <>
-      {/* Luxury Studio Lighting Setup */}
-      <ambientLight intensity={0.95} color="#ffffff" />
+      {/* Bright Luxury Apple-Style Studio Lighting */}
+      <ambientLight intensity={1.1} color="#ffffff" />
 
-      {/* Key Light: High-angle directional light casting crisp shadows and highlights */}
+      {/* Large Soft Key Light: Directional light casting crisp yet soft highlights and shadows */}
       <directionalLight
-        position={[3.5, 4.5, 3.5]}
-        intensity={2.4}
+        position={[2.5, 4.0, 3.0]}
+        intensity={2.2}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
-        shadow-camera-far={12}
+        shadow-camera-far={10}
         shadow-bias={-0.0001}
       />
 
-      {/* Back / Rim Light: Grazing beveled chamfers and paperboard sidewall thickness */}
+      {/* Narrow Back / Rim Light: Grazing beveled chamfers and physical sidewall depth */}
       <directionalLight
-        position={[-3.5, 2.0, -2.5]}
-        intensity={1.6}
+        position={[-3.0, 1.8, -2.0]}
+        intensity={1.5}
         color="#edf2ff"
       />
 
       {/* Secondary Soft Bounce Fill Light */}
       <directionalLight
-        position={[0, -3.0, 2.0]}
-        intensity={0.4}
+        position={[0, -2.5, 1.8]}
+        intensity={0.35}
         color="#ffffff"
       />
 
       {/* Master GSAP Transition Group: Decoupled from physics spring group */}
       <group ref={masterGroupRef} position={[0, 0, 0]}>
-        {/* Dynamic Zero-Allocation Braided Hanging String */}
-        <TagString eyeletRef={eyeletAnchorRef} ceilingY={3.2} />
+        {/* Dynamic Thin Braided Cotton Hanging String */}
+        <TagString eyeletRef={eyeletAnchorRef} ceilingY={2.4} />
 
         {/* 3D Suspended Fashion Tag */}
         <HangingTag
@@ -68,15 +68,15 @@ function TagSceneContent({
         />
       </group>
 
-      {/* Soft Contact Floor Shadow beneath the hanging tag */}
+      {/* Delicate Contact Floor Shadow beneath the hanging object */}
       <ContactShadows
-        position={[0, -1.65, 0]}
-        opacity={0.5}
-        scale={6.0}
-        blur={2.0}
-        far={3.0}
+        position={[0, -1.25, 0]}
+        opacity={0.24}
+        scale={4.2}
+        blur={2.4}
+        far={2.2}
         resolution={512}
-        color="#1a1815"
+        color="#000000"
       />
     </>
   );
@@ -84,8 +84,8 @@ function TagSceneContent({
 
 /**
  * TagScene
- * R3F Canvas container calibrated for 55-65vh desktop card presence,
- * balanced aspect ratio, and studio illumination.
+ * R3F Canvas container calibrated for 42-48vh desktop card presence,
+ * balanced portrait aspect ratio, and bright luxury studio photography.
  */
 export function TagScene({
   onPullTrigger,
@@ -97,7 +97,7 @@ export function TagScene({
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: [0, -0.05, 5.2], fov: 36 }}
+      camera={{ position: [0, -0.02, 5.2], fov: 36 }}
       gl={{
         antialias: true,
         alpha: true,

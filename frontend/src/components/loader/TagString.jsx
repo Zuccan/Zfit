@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 const SEGMENTS = 40;
 const RADIAL_SEGMENTS = 8;
-const TUBE_RADIUS = 0.015;
+const TUBE_RADIUS = 0.0075; // Delicate, thin black braided cotton cord
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
 // Module-level static scratch instances to guarantee 0 bytes GC per frame
@@ -16,7 +16,7 @@ const SCRATCH = {
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  ceilingAnchor: new THREE.Vector3(0, 3.2, 0),
+  ceilingAnchor: new THREE.Vector3(0, 2.4, 0),
 };
 
 /**
@@ -65,7 +65,7 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
 
   ceilingAnchor.set(0, ceilingY, 0);
 
-  // 1. World coordinates of the eyelet, transformed into string mesh local space
+  // 1. World coordinates of the eyelet/knot, transformed into string mesh local space
   eyeletMesh.getWorldPosition(eyeletPos);
   stringMesh.worldToLocal(eyeletPos);
 
@@ -73,9 +73,9 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
   const deltaX = eyeletPos.x - ceilingAnchor.x;
   const deltaZ = eyeletPos.z - ceilingAnchor.z;
   midPoint.set(
-    (ceilingAnchor.x + eyeletPos.x) * 0.5 - deltaX * 0.06,
+    (ceilingAnchor.x + eyeletPos.x) * 0.5 - deltaX * 0.05,
     (ceilingAnchor.y + eyeletPos.y) * 0.5,
-    (ceilingAnchor.z + eyeletPos.z) * 0.5 - deltaZ * 0.06
+    (ceilingAnchor.z + eyeletPos.z) * 0.5 - deltaZ * 0.05
   );
 
   // 3. Update spline control points in-place
@@ -125,9 +125,9 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
 
 /**
  * TagString
- * Dynamic braided hanging string that connects the ceiling anchor to the tag's punched hole.
+ * Delicate braided black cotton cord that connects the ceiling anchor to the tag's knot collar.
  */
-export function TagString({ eyeletRef, ceilingY = 3.2 }) {
+export function TagString({ eyeletRef, ceilingY = 2.4 }) {
   const meshRef = useRef(null);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
@@ -135,8 +135,8 @@ export function TagString({ eyeletRef, ceilingY = 3.2 }) {
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: '#121215',
-      roughness: 0.88,
-      metalness: 0.08,
+      roughness: 0.9,
+      metalness: 0.06,
     });
   }, []);
 

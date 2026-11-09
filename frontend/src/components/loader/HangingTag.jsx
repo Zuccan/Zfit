@@ -4,15 +4,15 @@ import * as THREE from 'three';
 import { createTagGeometry, createTagFrontTexture, createTagBackTexture, TAG_DIMENSIONS } from './TagGeometry';
 import { TagPhysics } from './TagPhysics';
 
-const BASE_SUSPENSION_Y = 0.85;
+const BASE_SUSPENSION_Y = 0.58;
 
 /**
  * HangingTag
- * Authentic off-white luxury fashion hang tag suspended in 3D:
- * - Premium ivory paper (#F3F0E9) with visible darker paperboard sidewall thickness
- * - Clean circular punched hole (no metallic eyelet) with black cord looping through
- * - Exact dark charcoal ZFITs SVG logo
- * - Bulletproof window-bound pointer interaction with correct screen-to-world torque dynamics
+ * Authentic luxury fashion hang tag suspended in 3D:
+ * - 42-48vh desktop presence with authentic proportions
+ * - Warm ivory white cardstock (#F3F1EB) with distinct natural paperboard sidewalls (#D5D0C5)
+ * - Tiny genuine punched hole with authentic black braided cotton cord loop/knot
+ * - Complete torque-based 3D physics with momentum preservation
  */
 export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, isInteractingRef }) {
   const physicsGroupRef = useRef(null);
@@ -23,9 +23,9 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   const [isDragging, setIsDragging] = useState(false);
 
   // Initialize the torque-based 3-DOF rigid-body pendulum
-  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.42 }), []);
+  const physics = useMemo(() => new TagPhysics({ pullThreshold: 0.35 }), []);
 
-  // Construct geometry with genuine circular punched hole
+  // Construct geometry with genuine tiny circular punched hole
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
 
   // Textures: High-contrast dark charcoal logo on warm ivory paper
@@ -33,22 +33,22 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   const backTexture = useMemo(() => createTagBackTexture(), []);
 
   // Multi-material setup:
-  // Material 0 (Front/Back faces): Warm ivory paper with satin sheen
-  // Material 1 (Sidewalls & Bevels): Authentic slightly deeper paperboard core for visible 3D thickness
+  // Material 0 (Front/Back faces): Warm ivory white (#F3F1EB) with satin sheen
+  // Material 1 (Sidewalls & Bevels): Compressed paperboard core (#D5D0C5) for tangible 3D thickness
   const materials = useMemo(() => {
     const faceMaterial = new THREE.MeshPhysicalMaterial({
       map: frontTexture,
-      color: '#F3F0E9',
-      roughness: 0.62,
+      color: '#F3F1EB',
+      roughness: 0.55,
       metalness: 0.02,
-      clearcoat: 0.14,
-      clearcoatRoughness: 0.35,
-      reflectivity: 0.5,
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.28,
+      reflectivity: 0.52,
     });
 
     const sidewallMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#D8D3C8', // Deeper paperboard core highlighting physical depth
-      roughness: 0.78,
+      color: '#D5D0C5',
+      roughness: 0.74,
       metalness: 0.01,
       clearcoat: 0.0,
     });
@@ -56,18 +56,23 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
     return [faceMaterial, sidewallMaterial];
   }, [frontTexture]);
 
-  // Black braided cord knot/loop material that secures the tag through the punched hole
-  const cordLoopMaterial = useMemo(() => {
+  // Black braided cotton cord material
+  const cordMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: '#121215',
-      roughness: 0.88,
-      metalness: 0.08,
+      roughness: 0.9,
+      metalness: 0.06,
     });
   }, []);
 
-  // Torus geometry simulating the cord loop wrapping through the punched hole
+  // 3D Cord Loop threading through the tiny punched hole
   const cordLoopGeometry = useMemo(() => {
-    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.95, 0.016, 12, 28);
+    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.95, 0.0075, 12, 28);
+  }, []);
+
+  // Small knot collar sitting right above the hole where the suspension cord joins
+  const knotGeometry = useMemo(() => {
+    return new THREE.CylinderGeometry(0.012, 0.014, 0.022, 14);
   }, []);
 
   // Bulletproof Pointer Interaction Handling
@@ -77,12 +82,12 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
     setIsDragging(true);
     if (isInteractingRef) isInteractingRef.current = true;
 
-    // Calculate local hit point relative to suspension eyelet
+    // Calculate local hit point relative to suspension pivot
     if (physicsGroupRef.current && e.point) {
       localHitVector.current.copy(e.point);
       physicsGroupRef.current.worldToLocal(localHitVector.current);
     } else {
-      localHitVector.current.set(0, -1.0, 0);
+      localHitVector.current.set(0, -0.75, 0);
     }
 
     const startX = e.clientX;
@@ -96,7 +101,7 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
       const worldScale = 0.0035;
 
       // Screen X increases to right -> World +X
-      // Screen Y increases downwards -> World -Y (inverted!)
+      // Screen Y increases downwards -> World -Y
       const deltaWorldX = dx * worldScale;
       const deltaWorldY = -dy * worldScale;
 
@@ -158,18 +163,26 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
   return (
     // PIVOT: Punched hole suspension pivot at BASE_SUSPENSION_Y
     <group ref={physicsGroupRef} position={[0, BASE_SUSPENSION_Y, 0]}>
-      {/* Dynamic String Tracking Anchor right at the center of the punched hole */}
-      <group ref={eyeletAnchorRef} position={[0, 0, 0]} />
+      {/* Anchor for dynamic suspension cord tracking, located at the knot collar */}
+      <group ref={eyeletAnchorRef} position={[0, 0.038, 0]} />
 
-      {/* Realistic black cord loop passing directly through the punched hole (NO metal grommet) */}
+      {/* Realistic black cotton cord loop passing through the tiny punched hole */}
       <mesh
         geometry={cordLoopGeometry}
-        material={cordLoopMaterial}
+        material={cordMaterial}
         position={[0, 0, 0]}
         castShadow
       />
 
-      {/* Tag Mesh offset so the punched hole sits precisely at (0, 0, 0) local pivot */}
+      {/* Authentic tie knot collar right above the hole where suspension cord attaches */}
+      <mesh
+        geometry={knotGeometry}
+        material={cordMaterial}
+        position={[0, 0.026, 0]}
+        castShadow
+      />
+
+      {/* Tag Mesh offset so the tiny hole sits precisely at (0, 0, 0) local pivot */}
       <group position={[0, -holeY, 0]}>
         <mesh
           ref={tagMeshRef}
@@ -182,7 +195,7 @@ export function HangingTag({ onPullTrigger, onTensionChange, eyeletAnchorRef, is
           onPointerOut={() => setIsHovered(false)}
         />
 
-        {/* Clean Rear Face Plate ensuring crisp typography from behind */}
+        {/* Clean Rear Face Plate */}
         <mesh position={[0, 0, -TAG_DIMENSIONS.depth * 0.5 - 0.002]} rotation={[0, Math.PI, 0]}>
           <planeGeometry args={[TAG_DIMENSIONS.width * 0.92, TAG_DIMENSIONS.height * 0.9]} />
           <meshBasicMaterial map={backTexture} transparent opacity={0.96} depthWrite={false} />

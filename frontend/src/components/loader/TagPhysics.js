@@ -13,61 +13,60 @@ const CLAMP = (val, min, max) => Math.min(Math.max(val, min), max);
 
 export class TagPhysics {
   constructor(options = {}) {
-    this.pullThreshold = options.pullThreshold || 0.48;
+    this.pullThreshold = options.pullThreshold || 0.35;
 
     // Current 3D angular state (radians)
-    // Starts with a subtle natural 3D angle so sidewalls and thickness are immediately visible!
+    // Starts with a subtle natural 3D angle so sidewalls and thickness are immediately visible
     this.rotation = {
-      x: 0.06,  // Subtle forward tilt (pitch)
-      y: 0.18,  // Natural 3D twist revealing card thickness & metallic eyelet (yaw)
-      z: -0.04, // Subtle lateral sway (roll)
+      x: 0.05,  // Subtle forward tilt (pitch)
+      y: 0.18,  // Natural 3D twist revealing card thickness & depth (yaw)
+      z: -0.03, // Subtle lateral sway (roll)
     };
 
-    // Angular velocities (rad/s) with initial physical disturbance
+    // Angular velocities (rad/s) with initial physical disturbance that gently settles
     this.velocity = {
       x: 0.0,
-      y: 0.65,  // Initial gentle spin that smoothly settles
-      z: -0.35, // Initial gentle sway
+      y: 0.45,  // Initial gentle spin that smoothly settles
+      z: -0.25, // Initial gentle sway
     };
 
-    // Card moments of inertia (Ix, Iy, Iz)
-    // Iy is much lower than Ix/Iz: a hanging tag twists easily around its vertical cord!
+    // Card moments of inertia (Ix, Iy, Iz) calibrated for clothing hang tag
     this.inertia = {
-      x: 1.8,
-      y: 0.45,
-      z: 1.8,
+      x: 1.1,
+      y: 0.28,
+      z: 1.1,
     };
 
     // Restoring spring stiffness constants
     this.stiffness = {
-      x: 28.0, // Pendulum gravity restoration (pitch)
-      y: 14.0, // Cord torsional twist restoration (yaw)
-      z: 32.0, // Pendulum gravity restoration (roll)
+      x: 26.0, // Pendulum gravity restoration (pitch)
+      y: 13.0, // Cord torsional twist restoration (yaw)
+      z: 28.0, // Pendulum gravity restoration (roll)
     };
 
     // Damping coefficients (air resistance + cord hinge friction)
     this.damping = {
-      x: 3.2,
-      y: 2.2,
-      z: 3.4,
+      x: 2.8,
+      y: 1.9,
+      z: 3.0,
     };
 
     // Vertical downward pull state (units)
     this.pullY = 0;
     this.pullVelocity = 0;
-    this.pullStiffness = 85.0;
-    this.pullDamping = 8.5;
+    this.pullStiffness = 95.0;
+    this.pullDamping = 9.0;
 
     // Interaction state
     this.isDragging = false;
-    this.dragLeverArm = { x: 0, y: -1.3, z: 0 }; // Local hit position r relative to eyelet
+    this.dragLeverArm = { x: 0, y: -0.75, z: 0 }; // Local hit position r relative to suspension hole
     this.appliedForce = { x: 0, y: 0, z: 0 };
     this.lastPointerPos = { x: 0, y: 0 };
     this.pointerVelocity = { x: 0, y: 0 };
   }
 
   /**
-   * Pointer grabbed at 3D point r relative to eyelet pivot
+   * Pointer grabbed at 3D point r relative to suspension hole
    * @param {number} clientX
    * @param {number} clientY
    * @param {THREE.Vector3} localHitPoint - Hit position on card relative to eyelet
@@ -80,13 +79,13 @@ export class TagPhysics {
     this.pointerVelocity.y = 0;
 
     if (localHitPoint) {
-      this.dragLeverArm.x = CLAMP(localHitPoint.x, -0.6, 0.6);
-      this.dragLeverArm.y = CLAMP(localHitPoint.y, -2.5, -0.1);
+      this.dragLeverArm.x = CLAMP(localHitPoint.x, -0.45, 0.45);
+      this.dragLeverArm.y = CLAMP(localHitPoint.y, -1.5, -0.05);
       this.dragLeverArm.z = localHitPoint.z || 0;
     } else {
       // Default to optical center of the card
       this.dragLeverArm.x = 0;
-      this.dragLeverArm.y = -1.3;
+      this.dragLeverArm.y = -0.75;
       this.dragLeverArm.z = 0;
     }
   }
@@ -110,7 +109,6 @@ export class TagPhysics {
     this.lastPointerPos.y = clientY;
 
     // Compute external force applied at lever arm point
-    // Fx pushes card horizontally; Fy pulls down or pushes up
     const forceFactor = 38.0;
     this.appliedForce.x = deltaWorldX * forceFactor;
     this.appliedForce.y = deltaWorldY * forceFactor;
@@ -118,7 +116,7 @@ export class TagPhysics {
 
     // Downward displacement under elastic resistance
     if (deltaWorldY < 0) {
-      const targetPull = Math.pow(-deltaWorldY, 0.8) * 0.65;
+      const targetPull = Math.pow(-deltaWorldY, 0.8) * 0.55;
       this.pullY = Math.max(this.pullY, targetPull);
     }
   }
@@ -135,7 +133,6 @@ export class TagPhysics {
     const wasDeliberatePull = this.pullY >= this.pullThreshold;
 
     // Transfer release pointer velocity directly into angular momentum
-    // Impulse: ΔL = r × (m * v)
     const rx = this.dragLeverArm.x;
     const ry = this.dragLeverArm.y;
     const vx = this.pointerVelocity.x * 0.08;
@@ -173,16 +170,16 @@ export class TagPhysics {
       const fy = this.appliedForce.y;
       const fz = this.appliedForce.z;
 
-      // τ = r × F:
+      // τ = r × F
       tauDragX = ry * fz - rz * fy;
       // Twist (Y-axis): pulling on the left (rx < 0) vs right (rx > 0) creates opposite yaw torque!
       tauDragY = rz * fx - rx * fz - rx * fy * 0.8;
       tauDragZ = rx * fy - ry * fx;
     } else {
       // Natural subtle idle breathing when not interacted with
-      // Non-repetitive combination of primes to prevent monotonous looping
-      const idleTorqueY = Math.sin(totalTime * 0.73) * 0.15 + Math.cos(totalTime * 1.37) * 0.08;
-      const idleTorqueZ = Math.sin(totalTime * 0.91) * 0.18 + Math.cos(totalTime * 1.63) * 0.06;
+      // Non-repetitive combination of primes to prevent mechanical looping
+      const idleTorqueY = Math.sin(totalTime * 0.73) * 0.12 + Math.cos(totalTime * 1.37) * 0.06;
+      const idleTorqueZ = Math.sin(totalTime * 0.91) * 0.14 + Math.cos(totalTime * 1.63) * 0.05;
       tauDragY = idleTorqueY;
       tauDragZ = idleTorqueZ;
     }
@@ -207,9 +204,9 @@ export class TagPhysics {
     this.rotation.z += this.velocity.z * dt;
 
     // Safety clamps on extreme angles to maintain realistic cord suspension
-    this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
-    this.rotation.y = CLAMP(this.rotation.y, -2.4, 2.4);
-    this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
+    this.rotation.x = CLAMP(this.rotation.x, -1.1, 1.1);
+    this.rotation.y = CLAMP(this.rotation.y, -2.2, 2.2);
+    this.rotation.z = CLAMP(this.rotation.z, -1.2, 1.2);
 
     // 4. Vertical downward pull spring simulation
     if (!this.isDragging) {
