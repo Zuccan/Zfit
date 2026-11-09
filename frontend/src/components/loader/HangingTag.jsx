@@ -5,12 +5,13 @@ import { createTagGeometry, createTagFrontTexture, createTagBackTexture, TAG_DIM
 
 /**
  * HangingTag
- * Authentic luxury fashion hang tag suspended in 3D:
- * - Slim portrait aspect ratio (~50% width to height, 38-44vh desktop presence)
- * - Warm ivory white cardstock (#F5F3EC) with visible natural paperboard core sidewalls (#D8D3C5)
- * - Genuine circular punched hole with authentic black braided cotton cord loop
- * - Completely coupled to the Verlet rope simulation (Node 11 = suspension eyelet)
- * - Full 360° rotational freedom with realistic torque & inertia
+ * Ultra-thin luxury fashion hang tag suspended in 3D:
+ * - Simple rectangular shape with 4 sharp 90-degree square corners
+ * - Ultra-thin physical paper construction (~0.35 - 0.45 mm thickness)
+ * - Warm ivory white cardstock (#F6F4ED) with subtle natural paperboard core edge (#E2DDD2)
+ * - Tiny circular punched hole with delicate black braided cotton cord loop
+ * - Fully coupled to the 12-particle Verlet rope (Node 11 = suspension eyelet)
+ * - 360° unconstrained rotation with lightweight paper inertia
  * - Symmetrical front and back faces with matching right-side-up ZFITs branding
  */
 export function HangingTag({ physics, onPullTrigger }) {
@@ -20,7 +21,7 @@ export function HangingTag({ physics, onPullTrigger }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Construct extruded geometry with authentic punched hole cutout
+  // Construct ultra-thin extruded rectangular geometry with authentic punched hole cutout
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
 
   // Textures: High-contrast dark charcoal logo on warm ivory paper
@@ -28,21 +29,21 @@ export function HangingTag({ physics, onPullTrigger }) {
   const backTexture = useMemo(() => createTagBackTexture(), []);
 
   // Multi-material setup:
-  // Material 0 (Faces): Warm ivory white (#F5F3EC) with smooth satin finish
-  // Material 1 (Sidewalls): Compressed paperboard core (#D8D3C5) for tangible 1.5-2mm thickness
+  // Material 0 (Faces): Warm ivory white (#F6F4ED) with fine paper texture
+  // Material 1 (Sidewalls): Ultra-thin natural paper core (#E2DDD2), no bulky plastic appearance
   const materials = useMemo(() => {
     const faceMaterial = new THREE.MeshPhysicalMaterial({
       map: frontTexture,
-      roughness: 0.52,
+      roughness: 0.54,
       metalness: 0.02,
-      clearcoat: 0.14,
-      clearcoatRoughness: 0.28,
-      reflectivity: 0.45,
+      clearcoat: 0.10,
+      clearcoatRoughness: 0.32,
+      reflectivity: 0.42,
     });
 
     const sidewallMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#D8D3C5',
-      roughness: 0.76,
+      color: '#E2DDD2',
+      roughness: 0.82,
       metalness: 0.01,
       clearcoat: 0.0,
     });
@@ -50,7 +51,7 @@ export function HangingTag({ physics, onPullTrigger }) {
     return [faceMaterial, sidewallMaterial];
   }, [frontTexture]);
 
-  // Black braided cotton cord material
+  // Delicate black braided cotton cord material
   const cordMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: '#141416',
@@ -61,12 +62,12 @@ export function HangingTag({ physics, onPullTrigger }) {
 
   // 3D Cord Loop threading through the punched hole
   const cordLoopGeometry = useMemo(() => {
-    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.92, 0.006, 12, 28);
+    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.94, 0.0035, 10, 24);
   }, []);
 
-  // Small knot collar sitting right above the hole where suspension rope attaches
+  // Small delicate knot collar sitting right above the hole where suspension rope attaches
   const knotGeometry = useMemo(() => {
-    return new THREE.CylinderGeometry(0.010, 0.012, 0.018, 14);
+    return new THREE.CylinderGeometry(0.0055, 0.0065, 0.012, 12);
   }, []);
 
   // Pointer Interaction Handling with global window listeners
@@ -158,7 +159,7 @@ export function HangingTag({ physics, onPullTrigger }) {
       <mesh
         geometry={knotGeometry}
         material={cordMaterial}
-        position={[0, 0.022, 0]}
+        position={[0, 0.015, 0]}
         castShadow
       />
 
@@ -176,10 +177,10 @@ export function HangingTag({ physics, onPullTrigger }) {
 
         {/* Clean Rear Face Plate: Un-mirrored identical artwork on the back */}
         <mesh
-          position={[0, 0, -halfThickness - 0.001]}
+          position={[0, 0, -halfThickness - 0.0002]}
           rotation={[0, Math.PI, 0]}
         >
-          <planeGeometry args={[TAG_DIMENSIONS.width * 0.94, TAG_DIMENSIONS.height * 0.92]} />
+          <planeGeometry args={[TAG_DIMENSIONS.width * 0.99, TAG_DIMENSIONS.height * 0.99]} />
           <meshBasicMaterial
             map={backTexture}
             transparent

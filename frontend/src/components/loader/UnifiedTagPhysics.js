@@ -16,14 +16,14 @@ export const INTERACTION_STATES = {
 };
 
 /**
- * UnifiedTagPhysics (V5)
- * Master coupled Verlet rope and fashion tag simulation:
- * - 12-particle dynamic Verlet rope with relaxation constraints
- * - Fixed ceiling anchor at node 0: (0, 2.05, 0)
- * - Bottom node (Node 11) is the card's punched hole attachment point
- * - Rope and card share physical coordinates: moving the card flexes the rope; grabbing the rope swings the card
+ * UnifiedTagPhysics
+ * Unified coupled Verlet rope and lightweight paperboard hang tag simulation:
+ * - 12-particle dynamic Verlet rope with distance relaxation constraints
+ * - Fixed ceiling anchor at node 0: (0, 2.15, 0)
+ * - Bottom node (Node 11) is the card's punched eyelet
+ * - Calibrated for ultra-thin lightweight paperboard (low inertia, crisp agile rotational response)
  * - Full 360° unconstrained rotation on yaw with momentum preservation
- * - True torque: τ = r × F (dragging left corner twists one way, right corner twists the opposite way)
+ * - True torque: τ = r × F (corner dragging produces distinct rotational responses)
  * - Deliberate downward pull detection (threshold 0.42 world units) to enter hero
  */
 export class UnifiedTagPhysics {
@@ -43,6 +43,7 @@ export class UnifiedTagPhysics {
     this.gravity = -9.8;
 
     // Particles: Node 0 = ceiling, Node 11 = card eyelet
+    // Lightweight paperboard mass (0.14) gives authentic paper suspension physics
     this.nodes = [];
     for (let i = 0; i < this.numNodes; i++) {
       const t = i / (this.numNodes - 1);
@@ -54,7 +55,7 @@ export class UnifiedTagPhysics {
         oldX: 0,
         oldY: y,
         oldZ: 0,
-        mass: i === this.numNodes - 1 ? 0.4 : 0.05,
+        mass: i === this.numNodes - 1 ? 0.14 : 0.05,
       });
     }
 
@@ -62,39 +63,39 @@ export class UnifiedTagPhysics {
     this.splinePoints = this.nodes.map(n => new THREE.Vector3(n.x, n.y, n.z));
 
     // Card 3D Angular Orientation
-    // Subtle initial 3D pose so sidewall thickness and lighting are visible immediately
+    // Subtle initial 3D pose so razor-thin edge and lighting are visible immediately
     this.rotation = {
-      x: 0.05,  // Pitch (tilt forward/back)
-      y: 0.22,  // Yaw (full 360° rotational twist around cord)
-      z: -0.04, // Roll (pendulum sway)
+      x: 0.04,  // Pitch (tilt forward/back)
+      y: 0.24,  // Yaw (full 360° rotational twist around cord)
+      z: -0.03, // Roll (pendulum sway)
     };
 
     // Angular velocities (rad/s)
     this.velocity = {
       x: 0.0,
-      y: 0.55,  // Gentle initial physical spin
+      y: 0.60,  // Gentle initial physical spin
       z: -0.25, // Gentle initial sway
     };
 
-    // Card moments of inertia
+    // Card moments of inertia calibrated for lightweight paperboard
     this.inertia = {
-      x: 0.85,
-      y: 0.16, // Low Iy allows effortless 360° multi-turn spinning
-      z: 0.85,
+      x: 0.36,
+      y: 0.055, // Low Iy allows agile, effortless 360° multi-turn spinning
+      z: 0.36,
     };
 
     // Restoring spring stiffness constants
     this.stiffness = {
-      x: 22.0, // Pitch restoration (gravity keeps card hanging down)
-      y: 0.85, // Very light torsional cord twist stiffness allowing multi-turn 360° spins!
-      z: 24.0, // Roll restoration (gravity keeps card centered)
+      x: 20.0, // Pitch restoration (gravity keeps card hanging down)
+      y: 0.55, // Very light torsional cord twist stiffness allowing multi-turn 360° spins!
+      z: 22.0, // Roll restoration (gravity keeps card centered)
     };
 
-    // Damping coefficients
+    // Damping coefficients (air resistance + cord hinge friction)
     this.damping = {
-      x: 2.4,
-      y: 0.28, // Very light yaw damping so spins carry through multiple full revolutions
-      z: 2.5,
+      x: 2.2,
+      y: 0.20, // Very light yaw damping so spins carry through multiple full revolutions
+      z: 2.2,
     };
 
     // Drag interaction
@@ -123,8 +124,8 @@ export class UnifiedTagPhysics {
     this.pointerVelocity.y = 0;
 
     if (localHitPoint) {
-      this.dragLeverArm.x = CLAMP(localHitPoint.x, -0.32, 0.32);
-      this.dragLeverArm.y = CLAMP(localHitPoint.y, -1.3, -0.05);
+      this.dragLeverArm.x = CLAMP(localHitPoint.x, -0.34, 0.34);
+      this.dragLeverArm.y = CLAMP(localHitPoint.y, -1.36, -0.05);
       this.dragLeverArm.z = localHitPoint.z || 0;
     } else {
       this.dragLeverArm.x = 0;
@@ -186,8 +187,7 @@ export class UnifiedTagPhysics {
 
     if (this.dragTarget === 'CARD') {
       const bottomNode = this.nodes[this.numNodes - 1];
-      // Move the bottom attachment particle of the rope directly with the cursor!
-      // This immediately pulls the rope into a true physical curve!
+      // Move bottom attachment particle of the rope directly with cursor
       bottomNode.x = this.cardDragOffset.x + deltaWorldX;
       bottomNode.y = this.cardDragOffset.y + deltaWorldY;
       bottomNode.z = this.cardDragOffset.z - deltaWorldY * 0.15;
@@ -253,15 +253,14 @@ export class UnifiedTagPhysics {
       bottomNode.oldX = bottomNode.x - vx;
       bottomNode.oldY = bottomNode.y - vy;
 
-      // Angular impulse
+      // Angular impulse calibrated for lightweight paperboard
       const rx = this.dragLeverArm.x;
       const ry = this.dragLeverArm.y;
-      this.velocity.z += CLAMP((-ry * vx + rx * vy) * 35.0, -14, 14);
-      // High rotational impulse on yaw for full 360° spin!
-      this.velocity.y += CLAMP((rx * -vy * 55.0) + (vx * 24.0), -28, 28);
-      this.velocity.x += CLAMP(vy * 25.0, -10, 10);
+      this.velocity.z += CLAMP((-ry * vx + rx * vy) * 36.0, -16, 16);
+      this.velocity.y += CLAMP((rx * -vy * 58.0) + (vx * 26.0), -32, 32);
+      this.velocity.x += CLAMP(vy * 26.0, -12, 12);
 
-      if (Math.abs(this.velocity.y) > 2.2) {
+      if (Math.abs(this.velocity.y) > 2.0) {
         this.state = INTERACTION_STATES.FREE_SPIN;
       } else {
         this.state = INTERACTION_STATES.FREE_SWING;
@@ -338,7 +337,6 @@ export class UnifiedTagPhysics {
           p1.y += dy * diff;
           p1.z += dz * diff;
         } else {
-          // Distribute based on mass
           const m1 = p1.mass;
           const m2 = p2.mass;
           const totalM = m1 + m2;
@@ -364,8 +362,8 @@ export class UnifiedTagPhysics {
     let idleTorqueY = 0;
     let idleTorqueZ = 0;
     if (!this.dragTarget) {
-      idleTorqueY = Math.sin(totalTime * 0.73) * 0.06 + Math.cos(totalTime * 1.37) * 0.03;
-      idleTorqueZ = Math.sin(totalTime * 0.91) * 0.08 + Math.cos(totalTime * 1.63) * 0.03;
+      idleTorqueY = Math.sin(totalTime * 0.73) * 0.05 + Math.cos(totalTime * 1.37) * 0.025;
+      idleTorqueZ = Math.sin(totalTime * 0.91) * 0.07 + Math.cos(totalTime * 1.63) * 0.025;
     }
 
     const tauTotalX = -this.stiffness.x * Math.sin(this.rotation.x) - this.damping.x * this.velocity.x;
@@ -381,7 +379,7 @@ export class UnifiedTagPhysics {
     this.velocity.z += alphaZ * dt;
 
     this.rotation.x += this.velocity.x * dt;
-    this.rotation.y += this.velocity.y * dt; // Full 360° unconstrained rotation!
+    this.rotation.y += this.velocity.y * dt; // Full 360° unconstrained rotation
     this.rotation.z += this.velocity.z * dt;
 
     this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
