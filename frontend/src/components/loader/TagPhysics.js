@@ -1,54 +1,68 @@
 /**
- * TagPhysics
+ * TagPhysics (V4)
  * Physically simulated 3D rigid-body pendulum engine:
- * - 3 independent rotational degrees of freedom: Roll (Z), Pitch (X), Yaw/Twist (Y)
- * - Torque-based interaction: τ = r × F (drag position on card determines rotational response)
- * - Dragging bottom-left twists differently than center or bottom-right
- * - Preserves angular momentum on pointer release
- * - Gravitational & torsional spring restoring forces with physical damping
- * - Deliberate downward pull threshold detection
+ * - Full 360° rotational freedom around suspension axis (no artificial yaw clamps)
+ * - Continuous angular momentum & multi-revolution spinning
+ * - Torque-based interaction: τ = r × F (corner dragging produces distinct rotational responses)
+ * - Complete state machine: INITIALIZING, IDLE, CARD_GRABBED, STRING_GRABBED, DRAGGING, FREE_SWING, FREE_SPIN, SETTLING, ENTERING_HERO, COMPLETED
+ * - Downward tension threshold detection for deliberate pull-to-enter
  */
 
 const CLAMP = (val, min, max) => Math.min(Math.max(val, min), max);
 
+export const INTERACTION_STATES = {
+  INITIALIZING: 'INITIALIZING',
+  IDLE: 'IDLE',
+  CARD_GRABBED: 'CARD_GRABBED',
+  STRING_GRABBED: 'STRING_GRABBED',
+  DRAGGING: 'DRAGGING',
+  FREE_SWING: 'FREE_SWING',
+  FREE_SPIN: 'FREE_SPIN',
+  SETTLING: 'SETTLING',
+  ENTERING_HERO: 'ENTERING_HERO',
+  COMPLETED: 'COMPLETED',
+};
+
 export class TagPhysics {
   constructor(options = {}) {
     this.pullThreshold = options.pullThreshold || 0.35;
+    this.state = INTERACTION_STATES.INITIALIZING;
 
-    // Current 3D angular state (radians)
-    // Starts with a subtle natural 3D angle so sidewalls and thickness are immediately visible
+    // Current 3D angular orientation (radians)
+    // Starts with a subtle natural 3D angle so sidewall thickness is immediately visible
     this.rotation = {
-      x: 0.05,  // Subtle forward tilt (pitch)
-      y: 0.18,  // Natural 3D twist revealing card thickness & depth (yaw)
-      z: -0.03, // Subtle lateral sway (roll)
+      x: 0.05,  // Pitch (tilt forward/back)
+      y: 0.18,  // Yaw (full 360° rotational twist around cord)
+      z: -0.03, // Roll (pendulum sway)
     };
 
-    // Angular velocities (rad/s) with initial physical disturbance that gently settles
+    // Angular velocities (rad/s) with initial physical disturbance
     this.velocity = {
       x: 0.0,
       y: 0.45,  // Initial gentle spin that smoothly settles
       z: -0.25, // Initial gentle sway
     };
 
-    // Card moments of inertia (Ix, Iy, Iz) calibrated for clothing hang tag
+    // Card moments of inertia (Ix, Iy, Iz)
+    // Low Iy allows effortless 360° spinning around vertical cord
     this.inertia = {
       x: 1.1,
-      y: 0.28,
+      y: 0.22,
       z: 1.1,
     };
 
     // Restoring spring stiffness constants
     this.stiffness = {
-      x: 26.0, // Pendulum gravity restoration (pitch)
-      y: 13.0, // Cord torsional twist restoration (yaw)
-      z: 28.0, // Pendulum gravity restoration (roll)
+      x: 24.0, // Pendulum gravity restoration (pitch)
+      y: 1.2,  // Light torsional cord twist restoration allowing multiple full 360° rotations!
+      z: 26.0, // Pendulum gravity restoration (roll)
     };
 
     // Damping coefficients (air resistance + cord hinge friction)
     this.damping = {
-      x: 2.8,
-      y: 1.9,
-      z: 3.0,
+      x: 2.6,
+      y: 0.35, // Very light yaw damping so spins carry through full 360° revolutions!
+      z: 2.8,
     };
 
     // Vertical downward pull state (units)
@@ -66,13 +80,11 @@ export class TagPhysics {
   }
 
   /**
-   * Pointer grabbed at 3D point r relative to suspension hole
-   * @param {number} clientX
-   * @param {number} clientY
-   * @param {THREE.Vector3} localHitPoint - Hit position on card relative to eyelet
+   * Card grabbed at 3D point r relative to suspension hole
    */
-  startDrag(clientX, clientY, localHitPoint = null) {
+  startCardDrag(clientX, clientY, localHitPoint = null) {
     this.isDragging = true;
+    this.state = INTERACTION_STATES.CARD_GRABBED;
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
     this.pointerVelocity.x = 0;
@@ -83,28 +95,28 @@ export class TagPhysics {
       this.dragLeverArm.y = CLAMP(localHitPoint.y, -1.5, -0.05);
       this.dragLeverArm.z = localHitPoint.z || 0;
     } else {
-      // Default to optical center of the card
       this.dragLeverArm.x = 0;
       this.dragLeverArm.y = -0.75;
       this.dragLeverArm.z = 0;
     }
   }
 
+  startDrag(clientX, clientY, localHitPoint = null) {
+    return this.startCardDrag(clientX, clientY, localHitPoint);
+  }
+
   /**
    * Updates drag forces based on pointer displacement and lever arm
-   * @param {number} clientX
-   * @param {number} clientY
-   * @param {number} deltaWorldX
-   * @param {number} deltaWorldY
    */
   updateDrag(clientX, clientY, deltaWorldX, deltaWorldY) {
     if (!this.isDragging) return;
+    this.state = INTERACTION_STATES.DRAGGING;
 
     // Track pointer velocity for momentum transfer on release
     const pvx = clientX - this.lastPointerPos.x;
     const pvy = clientY - this.lastPointerPos.y;
-    this.pointerVelocity.x = this.pointerVelocity.x * 0.4 + pvx * 0.6;
-    this.pointerVelocity.y = this.pointerVelocity.y * 0.4 + pvy * 0.6;
+    this.pointerVelocity.x = this.pointerVelocity.x * 0.35 + pvx * 0.65;
+    this.pointerVelocity.y = this.pointerVelocity.y * 0.35 + pvy * 0.65;
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
 
@@ -112,7 +124,7 @@ export class TagPhysics {
     const forceFactor = 38.0;
     this.appliedForce.x = deltaWorldX * forceFactor;
     this.appliedForce.y = deltaWorldY * forceFactor;
-    this.appliedForce.z = -deltaWorldY * forceFactor * 0.2; // Vertical pull induces slight 3D depth tilt
+    this.appliedForce.z = -deltaWorldY * forceFactor * 0.2;
 
     // Downward displacement under elastic resistance
     if (deltaWorldY < 0) {
@@ -123,7 +135,6 @@ export class TagPhysics {
 
   /**
    * Pointer released: transfers impulse and preserves angular momentum
-   * @returns {boolean} wasDeliberatePull - Whether downward pull threshold was reached
    */
   release() {
     if (!this.isDragging) return false;
@@ -132,16 +143,28 @@ export class TagPhysics {
     // Check deliberate downward pull threshold
     const wasDeliberatePull = this.pullY >= this.pullThreshold;
 
-    // Transfer release pointer velocity directly into angular momentum
-    const rx = this.dragLeverArm.x;
-    const ry = this.dragLeverArm.y;
-    const vx = this.pointerVelocity.x * 0.08;
-    const vy = this.pointerVelocity.y * 0.08;
+    if (wasDeliberatePull) {
+      this.state = INTERACTION_STATES.ENTERING_HERO;
+    } else {
+      // Transfer release pointer velocity directly into angular momentum
+      const rx = this.dragLeverArm.x;
+      const ry = this.dragLeverArm.y;
+      const vx = this.pointerVelocity.x * 0.09;
+      const vy = this.pointerVelocity.y * 0.09;
 
-    // Angular velocity impulses around Roll (Z), Pitch (X), and Twist (Y)
-    this.velocity.z += CLAMP((-ry * vx + rx * vy) * 0.8, -12, 12);
-    this.velocity.y += CLAMP((rx * -vy * 1.5), -14, 14);
-    this.velocity.x += CLAMP(vy * 0.8, -10, 10);
+      // Angular velocity impulses around Roll (Z), Pitch (X), and Twist (Y)
+      this.velocity.z += CLAMP((-ry * vx + rx * vy) * 0.8, -14, 14);
+      // High rotational impulse on yaw for full 360° spin!
+      this.velocity.y += CLAMP((rx * -vy * 2.2) + (vx * 0.8), -24, 24);
+      this.velocity.x += CLAMP(vy * 0.8, -10, 10);
+
+      // Determine post-release state
+      if (Math.abs(this.velocity.y) > 2.0) {
+        this.state = INTERACTION_STATES.FREE_SPIN;
+      } else {
+        this.state = INTERACTION_STATES.FREE_SWING;
+      }
+    }
 
     // Reset applied forces
     this.appliedForce.x = 0;
@@ -173,18 +196,19 @@ export class TagPhysics {
       // τ = r × F
       tauDragX = ry * fz - rz * fy;
       // Twist (Y-axis): pulling on the left (rx < 0) vs right (rx > 0) creates opposite yaw torque!
-      tauDragY = rz * fx - rx * fz - rx * fy * 0.8;
+      tauDragY = rz * fx - rx * fz - rx * fy * 1.2;
       tauDragZ = rx * fy - ry * fx;
     } else {
       // Natural subtle idle breathing when not interacted with
-      // Non-repetitive combination of primes to prevent mechanical looping
-      const idleTorqueY = Math.sin(totalTime * 0.73) * 0.12 + Math.cos(totalTime * 1.37) * 0.06;
-      const idleTorqueZ = Math.sin(totalTime * 0.91) * 0.14 + Math.cos(totalTime * 1.63) * 0.05;
+      const idleTorqueY = Math.sin(totalTime * 0.73) * 0.08 + Math.cos(totalTime * 1.37) * 0.04;
+      const idleTorqueZ = Math.sin(totalTime * 0.91) * 0.12 + Math.cos(totalTime * 1.63) * 0.04;
       tauDragY = idleTorqueY;
       tauDragZ = idleTorqueZ;
     }
 
     // 1. Total Torques: Restoring torque + Drag torque - Damping torque
+    // Note: Periodic gravitational restoration for pitch and roll: -k * sin(theta)
+    // Light linear torsional restoration for yaw: -k * theta (allows continuous multi-turn 360° spin!)
     const tauTotalX = -this.stiffness.x * Math.sin(this.rotation.x) + tauDragX - this.damping.x * this.velocity.x;
     const tauTotalY = -this.stiffness.y * this.rotation.y + tauDragY - this.damping.y * this.velocity.y;
     const tauTotalZ = -this.stiffness.z * Math.sin(this.rotation.z) + tauDragZ - this.damping.z * this.velocity.z;
@@ -200,13 +224,12 @@ export class TagPhysics {
     this.velocity.z += alphaZ * dt;
 
     this.rotation.x += this.velocity.x * dt;
-    this.rotation.y += this.velocity.y * dt;
+    this.rotation.y += this.velocity.y * dt; // NO CLAMP on Y! Full 360° continuous rotation!
     this.rotation.z += this.velocity.z * dt;
 
-    // Safety clamps on extreme angles to maintain realistic cord suspension
-    this.rotation.x = CLAMP(this.rotation.x, -1.1, 1.1);
-    this.rotation.y = CLAMP(this.rotation.y, -2.2, 2.2);
-    this.rotation.z = CLAMP(this.rotation.z, -1.2, 1.2);
+    // Gentle physical limits for pitch and roll (gravity keeps tag suspended beneath cord)
+    this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
+    this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
 
     // 4. Vertical downward pull spring simulation
     if (!this.isDragging) {
@@ -217,6 +240,20 @@ export class TagPhysics {
         this.pullY = 0;
         this.pullVelocity = 0;
       }
+
+      // Update state when settling
+      const kineticEnergy =
+        0.5 * this.inertia.x * this.velocity.x * this.velocity.x +
+        0.5 * this.inertia.y * this.velocity.y * this.velocity.y +
+        0.5 * this.inertia.z * this.velocity.z * this.velocity.z;
+
+      if (this.state !== INTERACTION_STATES.ENTERING_HERO && this.state !== INTERACTION_STATES.COMPLETED) {
+        if (kineticEnergy < 0.005) {
+          this.state = INTERACTION_STATES.IDLE;
+        } else if (kineticEnergy < 0.08) {
+          this.state = INTERACTION_STATES.SETTLING;
+        }
+      }
     }
 
     const isTensionHigh = this.pullY >= this.pullThreshold * 0.85;
@@ -225,6 +262,7 @@ export class TagPhysics {
       rotation: this.rotation,
       pullY: this.pullY,
       isTensionHigh,
+      state: this.state,
     };
   }
 }

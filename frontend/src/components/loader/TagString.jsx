@@ -1,6 +1,7 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { VerletRope } from './VerletRope';
 
 const SEGMENTS = 40;
 const RADIAL_SEGMENTS = 8;
@@ -9,14 +10,13 @@ const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
 // Module-level static scratch instances to guarantee 0 bytes GC per frame
 const SCRATCH = {
-  eyeletPos: new THREE.Vector3(),
-  midPoint: new THREE.Vector3(),
+  knotPos: new THREE.Vector3(),
   tangent: new THREE.Vector3(),
   normal: new THREE.Vector3(),
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  ceilingAnchor: new THREE.Vector3(0, 2.4, 0),
+  targetPos: new THREE.Vector3(),
 };
 
 /**
@@ -49,45 +49,24 @@ function createCordBufferState() {
 }
 
 /**
- * Updates vertex and normal coordinates in-place for the dynamic Catmull-Rom cord.
+ * External helper function updating the Verlet rope simulation and tube buffer geometry in-place.
  */
-function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceilingY) {
-  const {
-    eyeletPos,
-    midPoint,
-    tangent,
-    normal,
-    binormal,
-    curvePoint,
-    vertex,
-    ceilingAnchor,
-  } = SCRATCH;
+function updateCordGeometry(rope, spline, bufferState, eyeletMesh, delta) {
+  // 1. Get current world coordinates of the knot on the tag
+  eyeletMesh.getWorldPosition(SCRATCH.knotPos);
 
-  ceilingAnchor.set(0, ceilingY, 0);
+  // 2. Step the physical Verlet rope simulation
+  const points = rope.step(delta, SCRATCH.knotPos);
 
-  // 1. World coordinates of the eyelet/knot, transformed into string mesh local space
-  eyeletMesh.getWorldPosition(eyeletPos);
-  stringMesh.worldToLocal(eyeletPos);
-
-  // 2. Realistic gravitational sag & tension calculation
-  const deltaX = eyeletPos.x - ceilingAnchor.x;
-  const deltaZ = eyeletPos.z - ceilingAnchor.z;
-  midPoint.set(
-    (ceilingAnchor.x + eyeletPos.x) * 0.5 - deltaX * 0.05,
-    (ceilingAnchor.y + eyeletPos.y) * 0.5,
-    (ceilingAnchor.z + eyeletPos.z) * 0.5 - deltaZ * 0.05
-  );
-
-  // 3. Update spline control points in-place
-  spline.points[0].copy(ceilingAnchor);
-  spline.points[1].copy(midPoint);
-  spline.points[2].copy(eyeletPos);
+  // 3. Update Catmull-Rom curve points in-place
+  spline.points = points;
 
   // 4. Update vertex buffers
+  const { geometry, positions, normals } = bufferState;
+  const { tangent, normal, binormal, curvePoint, vertex } = SCRATCH;
+
   let vertexIndex = 0;
   normal.set(1, 0, 0);
-
-  const { geometry, positions, normals } = bufferState;
 
   for (let i = 0; i <= SEGMENTS; i++) {
     const t = i / SEGMENTS;
@@ -125,45 +104,111 @@ function updateCordGeometry(spline, bufferState, eyeletMesh, stringMesh, ceiling
 
 /**
  * TagString
- * Delicate braided black cotton cord that connects the ceiling anchor to the tag's knot collar.
+ * Dynamic Verlet rope simulation with direct user interaction:
+ * - Direct grab & pluck on the string itself
+ * - Real-time deformation propagating through neighboring nodes
+ * - Smooth in-place Catmull-Rom tube rendering with zero GC
  */
-export function TagString({ eyeletRef, ceilingY = 2.4 }) {
+export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
   const meshRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isStringDragging, setIsStringDragging] = useState(false);
+
+  // Initialize physical Verlet rope simulation
+  const rope = useMemo(() => new VerletRope({ ceilingY, numNodes: 14 }), [ceilingY]);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: '#121215',
-      roughness: 0.9,
-      metalness: 0.06,
+      roughness: 0.92,
+      metalness: 0.05,
     });
   }, []);
 
+  // Reusable CatmullRomCurve instance
   const spline = useMemo(() => {
-    return new THREE.CatmullRomCurve3(
-      [
-        new THREE.Vector3(0, ceilingY, 0),
-        new THREE.Vector3(0, ceilingY * 0.5, 0),
-        new THREE.Vector3(0, 0, 0),
-      ],
-      false,
-      'centripetal',
-      0.3
-    );
-  }, [ceilingY]);
+    return new THREE.CatmullRomCurve3(rope.splinePoints, false, 'centripetal', 0.2);
+  }, [rope]);
 
-  useFrame(() => {
+  // Handle direct string grab
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    setIsStringDragging(true);
+    if (onStringGrabChange) onStringGrabChange(true);
+
+    const hitPoint = e.point.clone();
+    rope.grabAtPoint(hitPoint);
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialHit = hitPoint.clone();
+
+    const onWindowPointerMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const worldScale = 0.0035;
+
+      SCRATCH.targetPos.set(
+        initialHit.x + dx * worldScale,
+        initialHit.y - dy * worldScale,
+        initialHit.z
+      );
+
+      rope.updateGrab(SCRATCH.targetPos);
+    };
+
+    const onWindowPointerUp = () => {
+      window.removeEventListener('pointermove', onWindowPointerMove);
+      window.removeEventListener('pointerup', onWindowPointerUp);
+      window.removeEventListener('pointercancel', onWindowPointerUp);
+
+      rope.releaseGrab();
+      setIsStringDragging(false);
+      if (onStringGrabChange) onStringGrabChange(false);
+    };
+
+    window.addEventListener('pointermove', onWindowPointerMove, { passive: true });
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerUp);
+  };
+
+  // Cursor styling
+  useEffect(() => {
+    if (isStringDragging) {
+      document.body.style.cursor = 'grabbing';
+    } else if (isHovered) {
+      document.body.style.cursor = 'grab';
+    }
+  }, [isStringDragging, isHovered]);
+
+  // Frame update
+  useFrame((state, delta) => {
     if (!eyeletRef.current || !meshRef.current) return;
-    updateCordGeometry(spline, bufferState, eyeletRef.current, meshRef.current, ceilingY);
+    updateCordGeometry(rope, spline, bufferState, eyeletRef.current, delta);
   });
 
   return (
-    <mesh
-      ref={meshRef}
-      geometry={bufferState.geometry}
-      material={stringMaterial}
-      castShadow
-    />
+    <group>
+      {/* Visual Rendered String */}
+      <mesh
+        ref={meshRef}
+        geometry={bufferState.geometry}
+        material={stringMaterial}
+        castShadow
+      />
+
+      {/* Invisible Interactive Raycast Collider around the cord for direct grabbing */}
+      <mesh
+        position={[0, (ceilingY + 0.58) / 2, 0]}
+        onPointerDown={handlePointerDown}
+        onPointerOver={() => setIsHovered(true)}
+        onPointerOut={() => setIsHovered(false)}
+      >
+        <cylinderGeometry args={[0.08, 0.08, ceilingY - 0.58, 8]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }

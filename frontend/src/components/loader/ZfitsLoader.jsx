@@ -4,12 +4,12 @@ import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader
+ * ZfitsLoader (V4)
  * Master entry loader component:
- * - Suspended interactive 3D fashion tag in R3F
- * - Authentic ZFITs logo preservation
- * - Independent 3-DOF pendulum physics
- * - Deliberate downward pull-to-enter trigger (only exits when user pulls tag or clicks skip)
+ * - Suspended interactive 3D fashion tag in R3F with full 360° rotational freedom
+ * - Dynamic Verlet rope physics with direct card and cord interaction
+ * - Identical high-contrast ZFITs branding on both sides
+ * - Deliberate downward pull-to-enter trigger
  * - Subtle skip & Escape key accessibility
  */
 export function ZfitsLoader({ onComplete }) {
@@ -97,7 +97,7 @@ export function ZfitsLoader({ onComplete }) {
       {/* Subtle Unobtrusive Interaction Guidance */}
       <footer className="loader-footer">
         <div className={`loader-hint ${isTensionHigh ? 'tension-high' : ''}`}>
-          <span>{isTensionHigh ? 'Release to Enter' : 'Drag to Swing'}</span>
+          <span>{isTensionHigh ? 'Release to Enter' : 'Drag Card or Cord to Swing'}</span>
           <span className="loader-hint-dot" aria-hidden="true" />
           <span>{isTensionHigh ? 'ZFITs Studio' : 'Pull Down to Enter'}</span>
         </div>

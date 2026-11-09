@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * Tag Dimensions and Geometry Specification (V3):
+ * Tag Dimensions and Geometry Specification (V4):
  * - Refined clothing hang tag proportions: 42-48vh on desktop
  * - Width: 0.94, Height: 1.55 (Aspect ratio ~0.606)
  * - True extruded 3D cardstock thickness: depth 0.05 + bevels 0.012 -> visible 3D sidewalls
@@ -118,37 +118,28 @@ export function createTagGeometry() {
 }
 
 /**
- * Generates the high-resolution front texture:
- * - Premium warm ivory white paper base (#F3F1EB)
- * - Tactile luxury paper grain
- * - Exact original ZFITs SVG logo mark in bold dark charcoal (#111114)
- * - Original bold typographic wordmark ZFITS.
- * - No unapproved extra text
+ * Helper to render the authentic ZFITs branding on a high-res canvas
  */
-export function createTagFrontTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1688;
+function renderBrandCanvas(canvas) {
   const ctx = canvas.getContext('2d');
-
-  if (!ctx) return new THREE.Texture();
+  if (!ctx) return;
 
   // 1. Warm Ivory White Luxury Paper Base
   ctx.fillStyle = '#F3F1EB';
-  ctx.fillRect(0, 0, 1024, 1688);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // 2. Subtle luxury paper grain
   ctx.fillStyle = 'rgba(0, 0, 0, 0.022)';
   for (let i = 0; i < 4000; i++) {
-    const gx = Math.random() * 1024;
-    const gy = Math.random() * 1688;
+    const gx = Math.random() * canvas.width;
+    const gy = Math.random() * canvas.height;
     ctx.fillRect(gx, gy, 1.5, 1.5);
   }
 
   // 3. Subtle debossed frame border matching chamfered silhouette
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.055)';
   ctx.lineWidth = 2.5;
-  ctx.strokeRect(52, 52, 920, 1584);
+  ctx.strokeRect(52, 52, canvas.width - 104, canvas.height - 104);
 
   // 4. Render the authentic original ZFITs SVG Logo in DARK CHARCOAL (#111114)
   ctx.save();
@@ -156,9 +147,8 @@ export function createTagFrontTexture() {
   try {
     const path = new Path2D(Z_LOGO_SVG_PATH);
     ctx.save();
-    // Center at 512, Y: 720
     const scale = 4.8;
-    ctx.translate(512 - (48 * scale) / 2, 700 - (46 * scale) / 2);
+    ctx.translate(canvas.width / 2 - (48 * scale) / 2, 700 - (46 * scale) / 2);
     ctx.scale(scale, scale);
     ctx.fillStyle = '#111114';
     ctx.fill(path);
@@ -173,9 +163,19 @@ export function createTagFrontTexture() {
   ctx.fillStyle = '#111114';
   ctx.font = '800 120px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Haas Regular", sans-serif';
   ctx.letterSpacing = '-2px';
-  ctx.fillText('ZFITS.', 512, 1000);
+  ctx.fillText('ZFITS.', canvas.width / 2, 1000);
 
   ctx.restore();
+}
+
+/**
+ * Generates the high-resolution front texture
+ */
+export function createTagFrontTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1688;
+  renderBrandCanvas(canvas);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -184,34 +184,16 @@ export function createTagFrontTexture() {
 }
 
 /**
- * Generates the clean rear texture for realistic 360° rotation.
+ * Generates the high-resolution back texture with MATCHING VISUAL QUALITY:
+ * - Identical ivory material
+ * - Identical authentic ZFITs branding (readable and NOT mirrored)
+ * - Matching debossed border and surface grain
  */
 export function createTagBackTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 1688;
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) return new THREE.Texture();
-
-  ctx.fillStyle = '#F3F1EB';
-  ctx.fillRect(0, 0, 1024, 1688);
-
-  // Subtle paper grain
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
-  for (let i = 0; i < 3000; i++) {
-    ctx.fillRect(Math.random() * 1024, Math.random() * 1688, 1.5, 1.5);
-  }
-
-  // Subtle rear typography
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
-  ctx.font = '700 80px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.letterSpacing = '4px';
-  ctx.fillText('ZFITS.', 512, 920);
-  ctx.restore();
+  renderBrandCanvas(canvas);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
