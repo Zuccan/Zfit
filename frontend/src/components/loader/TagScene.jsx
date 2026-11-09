@@ -1,33 +1,25 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { FabricMesh } from './FabricMesh';
 import { HangingTag } from './HangingTag';
 import { TagString } from './TagString';
 import { UnifiedTagPhysics } from './UnifiedTagPhysics';
-import { BreakFibers } from './BreakFibers';
+import { TAG_CONFIG } from './TagConfig';
 
 /**
- * TagSceneContent (V12)
- * Physical Breakaway Installation + Realistic Fabric Release:
- * - Ultra-thin black ZFITs fashion tag suspended in the optical center
- * - Upper attachment anchor at (0, 1.85, 0)
- * - Downward pull builds tension; excessive tension physically snaps the upper anchor
- * - String detaches, recoils, and plummets with the tag under gravity
- * - Spawns thread-fraying fiber particles at the snap point
- * - Triggers immediate silk fabric release from above the scene
+ * TagSceneContent
+ * Luxury Studio Installation:
+ * - Clean, uniform warm-white studio background (#F8F7F4)
+ * - Wide-frustum transparent ShadowMaterial receiver (ZERO visible geometric planes or edge cutoff lines)
+ * - Directional key light casting soft, realistic shadow
+ * - Top ceiling bracket at (0, TAG_CONFIG.ceilingY, -0.020)
+ * - Rich luxury black tag with pure crisp white branding
+ * - Continuous single-body cream braided cotton cord
  */
-function TagSceneContent({
-  clothPhysics,
-  onBreakaway,
-  onPullProgress,
-  onClothProgress,
-  onSceneReady,
-}) {
+function TagSceneContent({ onTriggerSlideDown, onPullProgress, onSceneReady }) {
   const tagGroupRef = useRef(null);
-  const [breakEvent, setBreakEvent] = useState(null);
 
-  // Ceiling Anchor Bracket Material
+  // Ceiling Anchor Bracket Material (Dark matte architectural hardware)
   const bracketMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
       color: new THREE.Color('#1A1A1D'),
@@ -39,15 +31,13 @@ function TagSceneContent({
   const physics = useMemo(() => {
     return new UnifiedTagPhysics({
       pullThreshold: 0.18,
-      onBreakaway: (event) => {
-        setBreakEvent(event);
-        clothPhysics.release();
-        if (onBreakaway) {
-          onBreakaway(event);
+      onTriggerSlideDown: () => {
+        if (onTriggerSlideDown) {
+          onTriggerSlideDown();
         }
       },
     });
-  }, [clothPhysics, onBreakaway]);
+  }, [onTriggerSlideDown]);
 
   useEffect(() => {
     if (onSceneReady) {
@@ -59,13 +49,7 @@ function TagSceneContent({
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
 
-    // 1. Step cloth simulation
-    const clothResult = clothPhysics.step(delta, time);
-    if (onClothProgress) {
-      onClothProgress(clothResult);
-    }
-
-    // 2. Step fashion tag physics
+    // Step fashion tag and rope physics
     const tagResult = physics.step(delta, time);
 
     if (onPullProgress) {
@@ -75,7 +59,7 @@ function TagSceneContent({
         maxPullY: tagResult.maxPullY,
         pullProgress: tagResult.pullProgress,
         isTriggerReady: tagResult.isTriggerReady,
-        isDetached: tagResult.isDetached,
+        isSnapped: tagResult.isSnapped,
         state: tagResult.state,
       });
     }
@@ -83,44 +67,52 @@ function TagSceneContent({
 
   return (
     <>
-      {/* Balanced Softbox Studio Lighting */}
-      <ambientLight intensity={0.92} color="#FFFFFF" />
+      {/* Clean warm-white studio background */}
+      <color attach="background" args={['#F8F7F4']} />
 
-      {/* Primary Key Directional Light */}
+      {/* Transparent Shadow Receiver: Renders ONLY the tag's soft shadow with ZERO border lines */}
+      <mesh position={[0, 0, -0.28]} receiveShadow>
+        <planeGeometry args={[16, 16]} />
+        <shadowMaterial transparent opacity={0.16} />
+      </mesh>
+
+      {/* Balanced Softbox Studio Ambient Light */}
+      <ambientLight intensity={0.58} color="#FFFFFF" />
+
+      {/* Primary Key Directional Light with generous shadow bounds to prevent any frustum edge line */}
       <directionalLight
-        position={[2.5, 4.5, 3.5]}
-        intensity={1.85}
+        position={[1.5, 2.8, 2.2]}
+        intensity={1.35}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
-        shadow-camera-far={12}
-        shadow-camera-left={-6}
-        shadow-camera-right={6}
-        shadow-camera-top={4}
-        shadow-camera-bottom={-4}
-        shadow-bias={-0.00015}
+        shadow-camera-far={8.0}
+        shadow-camera-left={-3.8}
+        shadow-camera-right={3.8}
+        shadow-camera-top={3.8}
+        shadow-camera-bottom={-3.8}
+        shadow-bias={-0.00005}
+        shadow-normalBias={0.01}
+        shadow-radius={2.5}
       />
 
-      {/* Edge & Rim Light */}
+      {/* Subtle Edge & Rim Kicker Light for crisp silhouette definition */}
       <directionalLight
-        position={[-3.2, 2.6, -2.0]}
-        intensity={1.15}
-        color="#F0F4FF"
+        position={[-2.8, 1.8, -1.2]}
+        intensity={0.42}
+        color="#F2F5FF"
       />
 
       {/* Gentle Upward Warm Fill Bounce */}
       <directionalLight
-        position={[-1.0, -1.8, 1.8]}
-        intensity={0.32}
+        position={[-0.8, -1.8, 1.2]}
+        intensity={0.18}
         color="#FFF8F2"
       />
 
-      {/* 1. Suspended Luxury Silk Fabric (Poised above viewport) */}
-      <FabricMesh clothPhysics={clothPhysics} />
-
-      {/* 2. Top Ceiling Attachment Hardware (The exact suspension anchor) */}
-      <group position={[0, 1.85, 0]}>
+      {/* Top Ceiling Attachment Hardware */}
+      <group position={[0, TAG_CONFIG.ceilingY, -0.020]}>
         <mesh castShadow material={bracketMaterial}>
           <boxGeometry args={[0.16, 0.035, 0.12]} />
         </mesh>
@@ -129,13 +121,10 @@ function TagSceneContent({
         </mesh>
       </group>
 
-      {/* 3. Thread-fraying fiber particles spawned at the exact upper connection upon break */}
-      <BreakFibers breakEvent={breakEvent} />
-
-      {/* 4. Interactive Hanging Fashion Tag Installation */}
+      {/* Interactive Hanging Fashion Tag Installation */}
       <group ref={tagGroupRef} position={[0, 0, 0]}>
-        <TagString physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
-        <HangingTag physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+        <TagString physics={physics} />
+        <HangingTag physics={physics} />
       </group>
     </>
   );
@@ -145,21 +134,15 @@ function TagSceneContent({
  * TagScene
  * R3F Canvas container calibrated for studio cinematography and physical breakaway.
  */
-export function TagScene({
-  clothPhysics,
-  onBreakaway,
-  onPullProgress,
-  onClothProgress,
-  onSceneReady,
-}) {
+export function TagScene({ onTriggerSlideDown, onPullProgress, onSceneReady }) {
   return (
     <Canvas
-      shadows
+      shadows={{ type: THREE.PCFSoftShadowMap }}
       dpr={[1, 2]}
-      camera={{ position: [0, 0.45, 4.4], fov: 34 }}
+      camera={{ position: [0, 0.28, 4.3], fov: 34 }}
       gl={{
         antialias: true,
-        alpha: true,
+        alpha: false,
         powerPreference: 'high-performance',
       }}
       style={{
@@ -169,10 +152,8 @@ export function TagScene({
       }}
     >
       <TagSceneContent
-        clothPhysics={clothPhysics}
-        onBreakaway={onBreakaway}
+        onTriggerSlideDown={onTriggerSlideDown}
         onPullProgress={onPullProgress}
-        onClothProgress={onClothProgress}
         onSceneReady={onSceneReady}
       />
     </Canvas>

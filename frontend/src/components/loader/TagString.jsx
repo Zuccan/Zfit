@@ -1,20 +1,20 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { TAG_CONFIG } from './TagConfig';
 
 const SEGMENTS = 36;
 const RADIAL_SEGMENTS = 8;
-const TUBE_RADIUS = 0.007; // Thin, delicate black braided cotton cord
+const TUBE_RADIUS = TAG_CONFIG.stringThickness; // Delicate cream cord thickness
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
-// Module-level static vectors to prevent any per-frame garbage collection
+// Module-level static vectors to prevent per-frame garbage collection
 const SCRATCH = {
   tangent: new THREE.Vector3(),
   normal: new THREE.Vector3(),
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  worldPos: new THREE.Vector3(),
 };
 
 /**
@@ -59,28 +59,34 @@ function updateTubeGeometry(spline, bufferState) {
   for (let i = 0; i <= SEGMENTS; i++) {
     const t = i / SEGMENTS;
     spline.getPoint(t, curvePoint);
-    spline.getTangent(t, tangent);
+    spline.getTangent(t, tangent).normalize();
 
+    // Frenet frame orientation
     binormal.crossVectors(tangent, normal).normalize();
     normal.crossVectors(binormal, tangent).normalize();
 
     for (let j = 0; j < RADIAL_SEGMENTS; j++) {
       const theta = (j / RADIAL_SEGMENTS) * Math.PI * 2;
-      const cos = Math.cos(theta);
-      const sin = Math.sin(theta);
+      const sinTheta = Math.sin(theta);
+      const cosTheta = Math.cos(theta);
 
-      vertex.x = curvePoint.x + TUBE_RADIUS * (cos * normal.x + sin * binormal.x);
-      vertex.y = curvePoint.y + TUBE_RADIUS * (cos * normal.y + sin * binormal.y);
-      vertex.z = curvePoint.z + TUBE_RADIUS * (cos * normal.z + sin * binormal.z);
+      // Normal in circle plane
+      const nx = normal.x * cosTheta + binormal.x * sinTheta;
+      const ny = normal.y * cosTheta + binormal.y * sinTheta;
+      const nz = normal.z * cosTheta + binormal.z * sinTheta;
 
-      const idx3 = vertexIndex * 3;
-      positions[idx3] = vertex.x;
-      positions[idx3 + 1] = vertex.y;
-      positions[idx3 + 2] = vertex.z;
+      // Vertex position
+      vertex.x = curvePoint.x + nx * TUBE_RADIUS;
+      vertex.y = curvePoint.y + ny * TUBE_RADIUS;
+      vertex.z = curvePoint.z + nz * TUBE_RADIUS;
 
-      normals[idx3] = cos * normal.x + sin * binormal.x;
-      normals[idx3 + 1] = cos * normal.y + sin * binormal.y;
-      normals[idx3 + 2] = cos * normal.z + sin * binormal.z;
+      positions[vertexIndex * 3] = vertex.x;
+      positions[vertexIndex * 3 + 1] = vertex.y;
+      positions[vertexIndex * 3 + 2] = vertex.z;
+
+      normals[vertexIndex * 3] = nx;
+      normals[vertexIndex * 3 + 1] = ny;
+      normals[vertexIndex * 3 + 2] = nz;
 
       vertexIndex++;
     }
@@ -88,15 +94,22 @@ function updateTubeGeometry(spline, bufferState) {
 
   geometry.attributes.position.needsUpdate = true;
   geometry.attributes.normal.needsUpdate = true;
+  geometry.computeBoundingSphere();
 }
 
 /**
  * TagString
- * Dynamic braided cotton suspension cord rendered directly from the unified Verlet rope.
- * Supports direct clicking and grabbing of the rope to pluck and swing it!
+ * Continuous Single-Body Cream Braided Cotton Cord:
+ * - Originates seamlessly from ceiling bracket at (0, 1.85, 0)
+ * - Extends continuously down into the tag's top-center punched hole
+ * - Reduced thickness for high-fashion delicacy (TAG_CONFIG.stringThickness: 0.0035)
+ * - Warm luxury cream color (TAG_CONFIG.stringColor: #F5EFE6)
+ * - Casts realistic physical shadow
  */
-export function TagString({ physics, onPullTrigger }) {
+export function TagString({ physics }) {
   const meshRef = useRef(null);
+  const frayedTipRef = useRef(null);
+
   const [isHovered, setIsHovered] = useState(false);
   const [isStringDragging, setIsStringDragging] = useState(false);
 
@@ -104,9 +117,9 @@ export function TagString({ physics, onPullTrigger }) {
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#ffffffff',
-      roughness: 0.92,
-      metalness: 0.04,
+      color: TAG_CONFIG.stringColor,
+      roughness: TAG_CONFIG.stringRoughness,
+      metalness: TAG_CONFIG.stringMetalness,
     });
   }, []);
 
@@ -115,9 +128,9 @@ export function TagString({ physics, onPullTrigger }) {
     new THREE.CatmullRomCurve3(physics.splinePoints, false, 'centripetal', 0.2)
   );
 
-  // Handle direct grabbing of the rope
+  // Handle direct pointer interaction with the string
   const handlePointerDown = (e) => {
-    if (physics.isLocked) return;
+    if (physics.isLocked || physics.isSnapped) return;
     e.stopPropagation();
     setIsStringDragging(true);
 
@@ -144,10 +157,7 @@ export function TagString({ physics, onPullTrigger }) {
       window.removeEventListener('pointercancel', onWindowPointerUp);
 
       setIsStringDragging(false);
-      const wasDeliberatePull = physics.release();
-      if (wasDeliberatePull && onPullTrigger) {
-        onPullTrigger();
-      }
+      physics.release();
     };
 
     window.addEventListener('pointermove', onWindowPointerMove, { passive: true });
@@ -159,38 +169,52 @@ export function TagString({ physics, onPullTrigger }) {
   useEffect(() => {
     if (isStringDragging) {
       document.body.style.cursor = 'grabbing';
-    } else if (isHovered) {
+    } else if (isHovered && !physics.isSnapped) {
       document.body.style.cursor = 'grab';
+    } else {
+      document.body.style.cursor = 'default';
     }
-  }, [isStringDragging, isHovered]);
+  }, [isStringDragging, isHovered, physics.isSnapped]);
 
   // Update dynamic tube geometry each frame
   useFrame(() => {
     if (!splineRef.current) return;
     splineRef.current.points = physics.splinePoints;
     updateTubeGeometry(splineRef.current, bufferState);
+
+    // Update position of frayed string tip at bottom node upon snap
+    if (frayedTipRef.current && physics.isSnapped) {
+      const bottomNode = physics.nodes[physics.numNodes - 1];
+      frayedTipRef.current.position.set(bottomNode.x, bottomNode.y, bottomNode.z);
+    }
   });
 
   return (
     <group>
-      {/* 3D Dynamic Cotton Cord Tube */}
+      {/* 3D Dynamic Cotton Cord Tube: Continuous from ceiling anchor to tag hole */}
       <mesh
         ref={meshRef}
         geometry={bufferState.geometry}
         material={stringMaterial}
         castShadow
-      />
-
-      {/* Invisible Interactive Raycast Collider around the cord */}
-      <mesh
-        position={[0, 0.95, 0]}
         onPointerDown={handlePointerDown}
         onPointerOver={() => setIsHovered(true)}
         onPointerOut={() => setIsHovered(false)}
-      >
-        <cylinderGeometry args={[0.075, 0.075, 1.1, 8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
+      />
+
+      {/* Subtle severed cream cotton thread fibers recoiling with the bottom rope end upon snap */}
+      {physics.isSnapped && (
+        <group ref={frayedTipRef}>
+          <mesh position={[-0.0015, -0.005, 0.001]} rotation={[0, 0, 0.28]} castShadow>
+            <cylinderGeometry args={[0.0004, 0.0004, 0.012, 6]} />
+            <meshBasicMaterial color={TAG_CONFIG.stringColor} />
+          </mesh>
+          <mesh position={[0.0015, -0.006, -0.001]} rotation={[0, 0, -0.30]} castShadow>
+            <cylinderGeometry args={[0.0004, 0.0004, 0.013, 6]} />
+            <meshBasicMaterial color={TAG_CONFIG.stringColor} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

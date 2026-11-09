@@ -1,72 +1,41 @@
-import React, { useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { TagScene } from './TagScene';
-import { ClothPhysics } from './ClothPhysics';
 import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V12)
- * Physical Breakaway Fashion Tag + Realistic Fabric Release:
- * - Minimal, clean warm white studio environment (#F8F7F4)
- * - Suspended black ZFITs fashion tag attached to breakable upper anchor
- * - Downward pull builds tension; strong pull physically breaks upper connection
- * - Tag plummets under gravity with loose string and frayed fiber particles
- * - Breakaway immediately triggers suspended silk fabric drop
- * - Fabric cascades downward with authentic folds, unveiling the luxury homepage
- * - Authoritative State Machine:
- *   IDLE → DRAGGING → TENSIONED → DETACHED → FABRIC_RELEASED → HERO_REVEALED
+ * ZfitsLoader (V13)
+ * Full-Screen Slide-Down Loader + Progressive Hero Reveal:
+ * - Minimal, clean warm-white studio environment (#F8F7F4)
+ * - Ultra-thin black ZFITs fashion tag suspended by black cotton rope
+ * - Natural swing, 360° spinning inertia, and pointer drag interactions
+ * - Deliberate downward pull triggers full-screen vertical slide-down
+ * - The entire loader panel slides down (0% -> 100%), progressively unveiling the luxury hero
+ * - Keyboard Escape shortcut for instant accessibility
  */
 export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
-  const rootRef = useRef(null);
-
-  // Track transition state
+  const panelRef = useRef(null);
   const isTransitioningRef = useRef(false);
-  const heroRevealedRef = useRef(false);
 
-  // Particle-based Verlet cloth physics instance created once
-  const clothPhysics = useMemo(() => {
-    return new ClothPhysics({
-      gravity: -14.0,
-      damping: 0.982,
-      iterations: 4,
+  // Trigger slide-down transition
+  const handleTriggerSlideDown = useCallback(() => {
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
+
+    LoaderTransition.orchestrateSlideDown({
+      panelEl: panelRef.current,
+      onHeroRevealReady,
+      onComplete,
     });
-  }, []);
-
-  // Frame-by-frame cloth progress handler
-  const handleClothProgress = useCallback((result) => {
-    if (result.isReleased) {
-      const topPct = Math.max(0, Math.min(100, (1 - result.topEdgeNormalized) * 100));
-
-      // Dynamically clip loader root in sync with the falling top edge of the silk
-      if (rootRef.current) {
-        rootRef.current.style.clipPath = `polygon(0 ${topPct.toFixed(2)}%, 100% ${topPct.toFixed(2)}%, 100% 100%, 0 100%)`;
-        rootRef.current.style.webkitClipPath = `polygon(0 ${topPct.toFixed(2)}%, 100% ${topPct.toFixed(2)}%, 100% 100%, 0 100%)`;
-      }
-
-      // Trigger hero entrance as fabric falls past the upper third of the viewport
-      if (topPct > 35 && !heroRevealedRef.current) {
-        heroRevealedRef.current = true;
-        if (onHeroRevealReady) onHeroRevealReady();
-      }
-
-      // Check if fabric has completely dropped out of the viewport
-      if (result.isFullyExited && !isTransitioningRef.current) {
-        isTransitioningRef.current = true;
-        if (!heroRevealedRef.current) {
-          heroRevealedRef.current = true;
-          if (onHeroRevealReady) onHeroRevealReady();
-        }
-        if (onComplete) onComplete();
-      }
-    }
   }, [onHeroRevealReady, onComplete]);
 
-  // Keyboard Escape accessibility fallback
+  // Keyboard Escape accessibility shortcut
   const handleKeyboardSkip = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
     LoaderTransition.animateSkip({
+      panelEl: panelRef.current,
       onHeroRevealReady,
       onComplete,
     });
@@ -84,17 +53,14 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
 
   return (
     <div
-      ref={rootRef}
-      className="zfits-3d-loader-root"
+      ref={panelRef}
+      className="zfits-loader-panel"
       role="dialog"
       aria-label="ZFITs Fashion Studio Entry"
     >
       {/* Interactive 3D WebGL Canvas Layer */}
       <div className="zfits-3d-canvas-wrap">
-        <TagScene
-          clothPhysics={clothPhysics}
-          onClothProgress={handleClothProgress}
-        />
+        <TagScene onTriggerSlideDown={handleTriggerSlideDown} />
       </div>
     </div>
   );

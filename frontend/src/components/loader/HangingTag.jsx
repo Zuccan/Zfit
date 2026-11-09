@@ -1,80 +1,86 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { createTagGeometry, createTagFrontTexture, createTagBackTexture, TAG_DIMENSIONS } from './TagGeometry';
+import {
+  createTagGeometry,
+  createTagFrontTexture,
+  createTagBackTexture,
+  createTagBumpTexture,
+  TAG_DIMENSIONS,
+} from './TagGeometry';
+import { TAG_CONFIG } from './TagConfig';
 
 /**
  * HangingTag
- * Fully black ultra-thin luxury fashion hang tag suspended in 3D:
- * - Simple rectangular shape with 4 sharp 90-degree square corners
- * - Ultra-thin physical paper construction (~0.35 - 0.45 mm thickness)
- * - Fully black luxury cardstock (#0D0D0F) with fine paper grain
- * - New reference logo: Tailored dress shirt collar & tie inside the letter Z
- * - Delicate black braided cotton cord loop through the punched hole
- * - Fully coupled to the 12-particle Verlet rope (Node 11 = suspension eyelet)
- * - 360° unconstrained rotation with lightweight paperboard inertia
- * - Symmetrical front and back faces with matching right-side-up ZFITs branding
+ * Luxury Black Fashion Tag with PURE #FFFFFF Content & Cream Cord:
+ * - 100% Fully opaque deep rich black cardstock (#0B0B0D)
+ * - PURE CRISP WHITE (#FFFFFF) Z-suit logo, wordmark, and border boosted by emissiveMap
+ * - Solid black paper core sidewalls (#0A0A0C)
+ * - Delicate matching cream cotton knot collar at punched hole
+ * - Reduced elegant card proportions (TAG_CONFIG.cardWidth x TAG_CONFIG.cardHeight)
+ * - Dynamic, soft, realistic cast shadow
  */
-export function HangingTag({ physics, onPullTrigger }) {
+export function HangingTag({ physics }) {
   const tagGroupRef = useRef(null);
   const localHitVector = useRef(new THREE.Vector3());
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Construct ultra-thin extruded rectangular geometry with authentic punched hole cutout
+  // Construct extruded rectangular geometry with clean punched hole cutout
   const { geometry: tagGeometry, holeY } = useMemo(() => createTagGeometry(), []);
 
-  // Textures: High-contrast pure white logo on fully black paper
+  // Textures: High-resolution diffuse and bump maps
   const frontTexture = useMemo(() => createTagFrontTexture(), []);
   const backTexture = useMemo(() => createTagBackTexture(), []);
+  const bumpTexture = useMemo(() => createTagBumpTexture(), []);
 
   // Multi-material setup:
-  // Material 0 (Faces): Fully black paper (#0D0D0F) with crisp white Z-suit logo
-  // Material 1 (Sidewalls): Ultra-thin black paper core (#101012), no bulky plastic appearance
+  // Material 0 (Faces): Deep black paper with PURE BRILLIANT #FFFFFF logo & typography
+  // Material 1 (Sidewalls): Deep black paper core edge (TAG_CONFIG.cardCoreColor)
   const materials = useMemo(() => {
-    const faceMaterial = new THREE.MeshPhysicalMaterial({
+    const faceMaterial = new THREE.MeshStandardMaterial({
       map: frontTexture,
-      color: '#ffffff',
-      roughness: 0.58,
-      metalness: 0.04,
-      clearcoat: 0.16,
-      clearcoatRoughness: 0.32,
-      reflectivity: 0.48,
+      emissiveMap: frontTexture,
+      emissive: new THREE.Color(TAG_CONFIG.contentColor),
+      emissiveIntensity: TAG_CONFIG.emissiveIntensity, // Ensures pure radiant #FFFFFF
+      bumpMap: bumpTexture,
+      bumpScale: 0.0016,
+      color: '#FFFFFF',
+      roughness: 0.72,
+      metalness: 0.0,
+      transparent: false,
+      depthWrite: true,
     });
 
-    const sidewallMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#101012',
-      roughness: 0.85,
-      metalness: 0.01,
-      clearcoat: 0.0,
+    const sidewallMaterial = new THREE.MeshStandardMaterial({
+      color: TAG_CONFIG.cardCoreColor,
+      roughness: 0.88,
+      metalness: 0.0,
+      transparent: false,
+      depthWrite: true,
     });
 
     return [faceMaterial, sidewallMaterial];
-  }, [frontTexture]);
+  }, [frontTexture, bumpTexture]);
 
-  // Delicate black braided cotton cord material
+  // Delicate cream braided cotton cord collar material
   const cordMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#141416',
-      roughness: 0.92,
-      metalness: 0.04,
+      color: TAG_CONFIG.stringColor, // Matching cream cord color (#F5EFE6)
+      roughness: TAG_CONFIG.stringRoughness,
+      metalness: TAG_CONFIG.stringMetalness,
     });
   }, []);
 
-  // 3D Cord Loop threading through the punched hole
-  const cordLoopGeometry = useMemo(() => {
-    return new THREE.TorusGeometry(TAG_DIMENSIONS.holeRadius * 0.94, 0.0035, 10, 24);
-  }, []);
-
-  // Small delicate knot collar sitting right above the hole where suspension rope attaches
+  // Small delicate knot collar sitting right at the punched hole eyelet
   const knotGeometry = useMemo(() => {
-    return new THREE.CylinderGeometry(0.0055, 0.0065, 0.012, 12);
+    return new THREE.CylinderGeometry(0.0042, 0.0050, 0.010, 12);
   }, []);
 
   // Pointer Interaction Handling with global window listeners
   const handlePointerDown = (e) => {
-    if (physics.isLocked) return;
+    if (physics.isLocked || physics.isSnapped) return;
     e.stopPropagation();
     setIsDragging(true);
 
@@ -83,7 +89,7 @@ export function HangingTag({ physics, onPullTrigger }) {
       localHitVector.current.copy(e.point);
       tagGroupRef.current.worldToLocal(localHitVector.current);
     } else {
-      localHitVector.current.set(0, -0.65, 0);
+      localHitVector.current.set(0, -TAG_DIMENSIONS.height / 2, 0);
     }
 
     const startX = e.clientX;
@@ -107,11 +113,7 @@ export function HangingTag({ physics, onPullTrigger }) {
       window.removeEventListener('pointercancel', onWindowPointerUp);
 
       setIsDragging(false);
-
-      const wasDeliberatePull = physics.release();
-      if (wasDeliberatePull && onPullTrigger) {
-        onPullTrigger();
-      }
+      physics.release();
     };
 
     window.addEventListener('pointermove', onWindowPointerMove, { passive: true });
@@ -123,7 +125,7 @@ export function HangingTag({ physics, onPullTrigger }) {
   useEffect(() => {
     if (isDragging) {
       document.body.style.cursor = 'grabbing';
-    } else if (isHovered) {
+    } else if (isHovered && !physics.isSnapped) {
       document.body.style.cursor = 'grab';
     } else {
       document.body.style.cursor = 'default';
@@ -131,14 +133,17 @@ export function HangingTag({ physics, onPullTrigger }) {
     return () => {
       document.body.style.cursor = 'default';
     };
-  }, [isDragging, isHovered]);
+  }, [isDragging, isHovered, physics.isSnapped]);
 
   // Synchronize tag mesh position and rotation with the coupled physics simulation
   useFrame(() => {
     if (!tagGroupRef.current) return;
 
-    const bottomNode = physics.nodes[physics.numNodes - 1];
-    tagGroupRef.current.position.set(bottomNode.x, bottomNode.y, bottomNode.z);
+    tagGroupRef.current.position.set(
+      physics.tagPosition.x,
+      physics.tagPosition.y,
+      physics.tagPosition.z
+    );
 
     tagGroupRef.current.rotation.x = physics.rotation.x;
     tagGroupRef.current.rotation.y = physics.rotation.y;
@@ -148,25 +153,31 @@ export function HangingTag({ physics, onPullTrigger }) {
   const halfThickness = TAG_DIMENSIONS.depth / 2 + TAG_DIMENSIONS.bevelThickness;
 
   return (
-    // Tag Group centered at suspension eyelet (Node 11)
+    // Tag Group centered at suspension eyelet (local [0, 0, 0] = center of punched hole)
     <group ref={tagGroupRef}>
-      {/* Black cotton cord loop through the punched hole */}
-      <mesh
-        geometry={cordLoopGeometry}
-        material={cordMaterial}
-        position={[0, 0, 0]}
-        castShadow
-      />
-
-      {/* Tie knot collar directly above the punched hole */}
+      {/* Cream tie knot collar directly at the rear punched hole connection */}
       <mesh
         geometry={knotGeometry}
         material={cordMaterial}
-        position={[0, 0.015, 0]}
+        position={[0, 0.005, -0.020]}
         castShadow
       />
 
-      {/* Tag Mesh translated so the hole sits exactly at (0, 0, 0) local pivot */}
+      {/* Subtle severed cream cotton micro-fibers at the collar upon snap */}
+      {physics.isSnapped && (
+        <group position={[0, 0.012, -0.020]}>
+          <mesh position={[-0.0015, 0.004, 0.001]} rotation={[0, 0, 0.28]}>
+            <cylinderGeometry args={[0.0004, 0.0004, 0.010, 6]} />
+            <meshBasicMaterial color={TAG_CONFIG.stringColor} />
+          </mesh>
+          <mesh position={[0.0015, 0.005, -0.001]} rotation={[0, 0, -0.25]}>
+            <cylinderGeometry args={[0.0004, 0.0004, 0.011, 6]} />
+            <meshBasicMaterial color={TAG_CONFIG.stringColor} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Tag Mesh translated so the punched hole sits exactly at (0, 0, 0) local pivot */}
       <group position={[0, -holeY, 0]}>
         <mesh
           geometry={tagGeometry}
@@ -180,15 +191,24 @@ export function HangingTag({ physics, onPullTrigger }) {
 
         {/* Clean Rear Face Plate: Un-mirrored identical artwork on the back */}
         <mesh
-          position={[0, 0, -halfThickness - 0.0002]}
+          position={[0, 0, -halfThickness - 0.0001]}
           rotation={[0, Math.PI, 0]}
+          castShadow
+          receiveShadow
         >
-          <planeGeometry args={[TAG_DIMENSIONS.width * 0.99, TAG_DIMENSIONS.height * 0.99]} />
-          <meshBasicMaterial
+          <planeGeometry args={[TAG_DIMENSIONS.width * 0.995, TAG_DIMENSIONS.height * 0.995]} />
+          <meshStandardMaterial
             map={backTexture}
-            transparent
-            opacity={0.98}
-            depthWrite={false}
+            emissiveMap={backTexture}
+            emissive={new THREE.Color(TAG_CONFIG.contentColor)}
+            emissiveIntensity={TAG_CONFIG.emissiveIntensity}
+            bumpMap={bumpTexture}
+            bumpScale={0.0016}
+            color="#FFFFFF"
+            roughness={0.72}
+            metalness={0.0}
+            transparent={false}
+            depthWrite={true}
           />
         </mesh>
       </group>

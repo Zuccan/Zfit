@@ -1,9 +1,10 @@
 /* ==========================================================================
-   ZFITs 3D Interactive Hanging Fashion Tag + Fabric Drop Loader (V11.1)
+   ZFITs 3D Interactive Hanging Fashion Tag Loader (V13)
+   Full-Screen Slide-Down Transition
    Minimal Clean Warm White Studio Environment (#F8F7F4)
    ========================================================================== */
 
-.zfits-3d-loader-root {
+.zfits-loader-panel {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -18,7 +19,8 @@
   pointer-events: auto;
   margin: 0;
   padding: 0;
-  will-change: clip-path;
+  will-change: transform;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
 }
 
 /* 3D WebGL Canvas Layer */
