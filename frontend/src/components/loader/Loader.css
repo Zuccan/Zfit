@@ -1,6 +1,6 @@
 /* ==========================================================================
    ZFITs 3D Interactive Hanging Fashion Tag Loader
-   Clean Apple-Style Luxury White Studio Photography
+   Clean Editorial Studio Environment with Physical Depth
    ========================================================================== */
 
 .zfits-3d-loader-root {
@@ -15,8 +15,8 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  background: #FAF9F6;
-  background: radial-gradient(ellipse 95% 85% at 50% 30%, #FFFFFF 0%, #FAFAF8 65%, #F4F3EE 100%);
+  background: #F4F3EE;
+  background: radial-gradient(ellipse 95% 85% at 50% 32%, #FAF9F5 0%, #F1EFE8 60%, #E8E4DC 100%);
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -66,14 +66,14 @@
   font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0.18em;
-  color: #888681;
+  color: #7b7871;
   text-transform: uppercase;
 }
 
 /* Minimalist Skip Button */
 .loader-skip-btn {
   pointer-events: auto;
-  background: rgba(18, 18, 20, 0.04);
+  background: rgba(18, 18, 20, 0.05);
   border: 1px solid rgba(18, 18, 20, 0.12);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -113,7 +113,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding-bottom: 2.5rem;
+  padding-bottom: 2.6rem;
   pointer-events: none;
 }
 
@@ -122,7 +122,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.24em;
-  color: #686660;
+  color: #68655e;
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -131,7 +131,7 @@
 }
 
 .loader-hint.tension-high {
-  color: #d43856;
+  color: #c93450;
   transform: scale(1.06);
   letter-spacing: 0.28em;
 }
@@ -149,13 +149,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8c8982;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  color: #8c8880;
+  transition: transform 0.22s ease, color 0.22s ease;
 }
 
 .loader-pull-indicator.tension-high {
-  color: #d43856;
-  transform: translateY(3px);
+  color: #c93450;
+  transform: translateY(4px);
 }
 
 /* Responsive adjustments for mobile viewports */

@@ -4,12 +4,12 @@ import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V4)
+ * ZfitsLoader (V5)
  * Master entry loader component:
- * - Suspended interactive 3D fashion tag in R3F with full 360° rotational freedom
- * - Dynamic Verlet rope physics with direct card and cord interaction
- * - Identical high-contrast ZFITs branding on both sides
- * - Deliberate downward pull-to-enter trigger
+ * - Truly suspended interactive 3D fashion tag coupled to a dynamic 12-particle Verlet rope
+ * - Slim, narrow portrait aspect ratio (38-44vh desktop presence)
+ * - Identical high-contrast ZFITs branding on both sides with full 360° unconstrained rotation
+ * - Deliberate downward pull-to-enter trigger (ordinary swinging/dragging allows free exploration)
  * - Subtle skip & Escape key accessibility
  */
 export function ZfitsLoader({ onComplete }) {
@@ -20,7 +20,7 @@ export function ZfitsLoader({ onComplete }) {
   const [isTensionHigh, setIsTensionHigh] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
 
-  // Trigger hero reveal ONLY when user pulls down past threshold and releases
+  // Trigger hero reveal ONLY when user deliberately pulls down past threshold and releases
   const triggerReveal = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;

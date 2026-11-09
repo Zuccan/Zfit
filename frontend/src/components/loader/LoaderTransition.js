@@ -2,14 +2,12 @@ import gsap from 'gsap';
 
 /**
  * LoaderTransition
- * Coordinates cinematic GSAP entrance and reveal transitions for the 3D tag loader.
- * Separated cleanly from the inner physics simulation to prevent competing transforms.
+ * Coordinates cinematic GSAP entrance and hero reveal transitions for the 3D tag loader.
+ * Separated cleanly from inner physics to prevent competing transforms.
  */
 export const LoaderTransition = {
   /**
-   * Animates the tag dropping down smoothly into view from the ceiling.
-   * @param {THREE.Group} targetGroup - The master entrance group in Three.js
-   * @param {Object} options
+   * Animates the tag dropping down smoothly into view from slightly above on first mount.
    */
   animateEntry(targetGroup, { onComplete } = {}) {
     if (!targetGroup) return gsap.timeline();
@@ -18,20 +16,20 @@ export const LoaderTransition = {
       onComplete,
     });
 
-    targetGroup.position.y = 1.5;
-    targetGroup.scale.set(0.95, 0.95, 0.95);
+    targetGroup.position.y = 0.55;
+    targetGroup.scale.set(0.97, 0.97, 0.97);
 
     tl.to(targetGroup.position, {
       y: 0,
-      duration: 1.2,
-      ease: 'power3.out',
+      duration: 1.0,
+      ease: 'power2.out',
     }, 0);
 
     tl.to(targetGroup.scale, {
       x: 1,
       y: 1,
       z: 1,
-      duration: 1.1,
+      duration: 0.9,
       ease: 'power2.out',
     }, 0.1);
 
@@ -51,17 +49,17 @@ export const LoaderTransition = {
 
     if (targetGroup) {
       tl.to(targetGroup.position, {
-        y: 0.5,
-        z: 2.6,
-        duration: 0.8,
+        y: -1.4,
+        z: 2.2,
+        duration: 0.7,
         ease: 'power3.in',
       }, 0);
 
       tl.to(targetGroup.scale, {
-        x: 1.25,
-        y: 1.25,
-        z: 1.25,
-        duration: 0.8,
+        x: 1.2,
+        y: 1.2,
+        z: 1.2,
+        duration: 0.7,
         ease: 'power3.in',
       }, 0);
     }
@@ -70,9 +68,9 @@ export const LoaderTransition = {
       tl.to(overlayEl, {
         opacity: 0,
         pointerEvents: 'none',
-        duration: 0.65,
+        duration: 0.6,
         ease: 'power2.inOut',
-      }, 0.15);
+      }, 0.12);
     }
 
     return tl;

@@ -1,26 +1,24 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { VerletRope } from './VerletRope';
 
-const SEGMENTS = 40;
+const SEGMENTS = 36;
 const RADIAL_SEGMENTS = 8;
-const TUBE_RADIUS = 0.0075; // Delicate, thin black braided cotton cord
+const TUBE_RADIUS = 0.007; // Thin, delicate black braided cotton cord
 const TOTAL_VERTICES = (SEGMENTS + 1) * RADIAL_SEGMENTS;
 
-// Module-level static scratch instances to guarantee 0 bytes GC per frame
+// Module-level static vectors to prevent any per-frame garbage collection
 const SCRATCH = {
-  knotPos: new THREE.Vector3(),
   tangent: new THREE.Vector3(),
   normal: new THREE.Vector3(),
   binormal: new THREE.Vector3(),
   curvePoint: new THREE.Vector3(),
   vertex: new THREE.Vector3(),
-  targetPos: new THREE.Vector3(),
+  worldPos: new THREE.Vector3(),
 };
 
 /**
- * Creates static tube topology and preallocated Float32Arrays once.
+ * Creates preallocated Float32Array buffers and static index buffer once.
  */
 function createCordBufferState() {
   const geom = new THREE.BufferGeometry();
@@ -49,19 +47,9 @@ function createCordBufferState() {
 }
 
 /**
- * External helper function updating the Verlet rope simulation and tube buffer geometry in-place.
+ * In-place vertex buffer update along Catmull-Rom curve with zero memory allocations
  */
-function updateCordGeometry(rope, spline, bufferState, eyeletMesh, delta) {
-  // 1. Get current world coordinates of the knot on the tag
-  eyeletMesh.getWorldPosition(SCRATCH.knotPos);
-
-  // 2. Step the physical Verlet rope simulation
-  const points = rope.step(delta, SCRATCH.knotPos);
-
-  // 3. Update Catmull-Rom curve points in-place
-  spline.points = points;
-
-  // 4. Update vertex buffers
+function updateTubeGeometry(spline, bufferState) {
   const { geometry, positions, normals } = bufferState;
   const { tangent, normal, binormal, curvePoint, vertex } = SCRATCH;
 
@@ -104,59 +92,49 @@ function updateCordGeometry(rope, spline, bufferState, eyeletMesh, delta) {
 
 /**
  * TagString
- * Dynamic Verlet rope simulation with direct user interaction:
- * - Direct grab & pluck on the string itself
- * - Real-time deformation propagating through neighboring nodes
- * - Smooth in-place Catmull-Rom tube rendering with zero GC
+ * Dynamic braided cotton suspension cord rendered directly from the unified Verlet rope.
+ * Supports direct clicking and grabbing of the rope to pluck and swing it!
  */
-export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
+export function TagString({ physics, onPullTrigger }) {
   const meshRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isStringDragging, setIsStringDragging] = useState(false);
-
-  // Initialize physical Verlet rope simulation
-  const rope = useMemo(() => new VerletRope({ ceilingY, numNodes: 14 }), [ceilingY]);
 
   const bufferState = useMemo(() => createCordBufferState(), []);
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#121215',
+      color: '#141416',
       roughness: 0.92,
-      metalness: 0.05,
+      metalness: 0.04,
     });
   }, []);
 
-  // Reusable CatmullRomCurve instance
-  const spline = useMemo(() => {
-    return new THREE.CatmullRomCurve3(rope.splinePoints, false, 'centripetal', 0.2);
-  }, [rope]);
+  // Catmull-Rom spline instantiated in ref for per-frame point updates
+  const splineRef = useRef(
+    new THREE.CatmullRomCurve3(physics.splinePoints, false, 'centripetal', 0.2)
+  );
 
-  // Handle direct string grab
+  // Handle direct grabbing of the rope
   const handlePointerDown = (e) => {
     e.stopPropagation();
     setIsStringDragging(true);
-    if (onStringGrabChange) onStringGrabChange(true);
 
     const hitPoint = e.point.clone();
-    rope.grabAtPoint(hitPoint);
+    physics.startStringDrag(hitPoint, e.clientX, e.clientY);
 
     const startX = e.clientX;
     const startY = e.clientY;
-    const initialHit = hitPoint.clone();
 
     const onWindowPointerMove = (ev) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       const worldScale = 0.0035;
 
-      SCRATCH.targetPos.set(
-        initialHit.x + dx * worldScale,
-        initialHit.y - dy * worldScale,
-        initialHit.z
-      );
+      const deltaWorldX = dx * worldScale;
+      const deltaWorldY = -dy * worldScale;
 
-      rope.updateGrab(SCRATCH.targetPos);
+      physics.updateDrag(ev.clientX, ev.clientY, deltaWorldX, deltaWorldY);
     };
 
     const onWindowPointerUp = () => {
@@ -164,9 +142,11 @@ export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
       window.removeEventListener('pointerup', onWindowPointerUp);
       window.removeEventListener('pointercancel', onWindowPointerUp);
 
-      rope.releaseGrab();
       setIsStringDragging(false);
-      if (onStringGrabChange) onStringGrabChange(false);
+      const wasDeliberatePull = physics.release();
+      if (wasDeliberatePull && onPullTrigger) {
+        onPullTrigger();
+      }
     };
 
     window.addEventListener('pointermove', onWindowPointerMove, { passive: true });
@@ -174,7 +154,7 @@ export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
     window.addEventListener('pointercancel', onWindowPointerUp);
   };
 
-  // Cursor styling
+  // Cursor styling synchronization
   useEffect(() => {
     if (isStringDragging) {
       document.body.style.cursor = 'grabbing';
@@ -183,15 +163,16 @@ export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
     }
   }, [isStringDragging, isHovered]);
 
-  // Frame update
-  useFrame((state, delta) => {
-    if (!eyeletRef.current || !meshRef.current) return;
-    updateCordGeometry(rope, spline, bufferState, eyeletRef.current, delta);
+  // Update dynamic tube geometry each frame
+  useFrame(() => {
+    if (!splineRef.current) return;
+    splineRef.current.points = physics.splinePoints;
+    updateTubeGeometry(splineRef.current, bufferState);
   });
 
   return (
     <group>
-      {/* Visual Rendered String */}
+      {/* 3D Dynamic Cotton Cord Tube */}
       <mesh
         ref={meshRef}
         geometry={bufferState.geometry}
@@ -199,14 +180,14 @@ export function TagString({ eyeletRef, ceilingY = 2.4, onStringGrabChange }) {
         castShadow
       />
 
-      {/* Invisible Interactive Raycast Collider around the cord for direct grabbing */}
+      {/* Invisible Interactive Raycast Collider around the cord */}
       <mesh
-        position={[0, (ceilingY + 0.58) / 2, 0]}
+        position={[0, (physics.ceilingY + 0.6) / 2, 0]}
         onPointerDown={handlePointerDown}
         onPointerOver={() => setIsHovered(true)}
         onPointerOut={() => setIsHovered(false)}
       >
-        <cylinderGeometry args={[0.08, 0.08, ceilingY - 0.58, 8]} />
+        <cylinderGeometry args={[0.075, 0.075, physics.ceilingY - 0.6, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>

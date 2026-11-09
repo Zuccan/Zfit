@@ -1,25 +1,25 @@
 import * as THREE from 'three';
 
 /**
- * Tag Dimensions and Geometry Specification (V4):
- * - Refined clothing hang tag proportions: 42-48vh on desktop
- * - Width: 0.94, Height: 1.55 (Aspect ratio ~0.606)
- * - True extruded 3D cardstock thickness: depth 0.05 + bevels 0.012 -> visible 3D sidewalls
- * - Signature diagonal chamfers at Top-Left and Bottom-Right
- * - Subtly rounded Top-Right and Bottom-Left corners
- * - Tiny genuine circular punched hole (holeRadius: 0.032)
+ * Tag Dimensions and Geometry Specification (V5):
+ * - Slim, narrow portrait aspect ratio: width ~50% of height (0.70 : 1.38)
+ * - Desktop presence: 38-44vh
+ * - Realistic pressed paperboard thickness: ~1.5-2mm (depth 0.024, bevel 0.006)
+ * - Top-left and bottom-right diagonal chamfers
+ * - Top-right and bottom-left rounded corners
+ * - Tiny genuine circular punched hole through the cardstock (holeRadius: 0.024)
  */
 export const TAG_DIMENSIONS = {
-  width: 0.94,
-  height: 1.55,
-  depth: 0.05,
-  cornerRadius: 0.08,
-  chamfer: 0.22,
-  holeRadius: 0.032,
-  holeOffsetY: 0.16, // Distance from top edge to hole center
-  bevelThickness: 0.012,
-  bevelSize: 0.012,
-  bevelSegments: 4,
+  width: 0.70,
+  height: 1.38,
+  depth: 0.024,
+  cornerRadius: 0.05,
+  chamfer: 0.16,
+  holeRadius: 0.024,
+  holeOffsetY: 0.11, // Distance from top edge to hole center
+  bevelThickness: 0.006,
+  bevelSize: 0.006,
+  bevelSegments: 3,
 };
 
 // Exact original ZFITs SVG logo mark path from assets/logo-mark.svg
@@ -28,7 +28,7 @@ const Z_LOGO_SVG_PATH =
 
 /**
  * Creates the outer shape with signature chamfers, rounded corners,
- * and a tiny circular punched hole.
+ * and a tiny circular punched hole cutout.
  */
 export function createTagShape() {
   const { width: w, height: h, cornerRadius: r, chamfer: c, holeRadius, holeOffsetY } = TAG_DIMENSIONS;
@@ -67,7 +67,7 @@ export function createTagShape() {
   // Tiny circular punched hole through the cardstock
   const hole = new THREE.Path();
   const holeY = hh - holeOffsetY;
-  // Clockwise winding for cutout in Three.js
+  // Clockwise winding for genuine geometric cutout in Three.js ExtrudeGeometry
   hole.absarc(0, holeY, holeRadius, 0, Math.PI * 2, true);
   shape.holes.push(hole);
 
@@ -94,7 +94,7 @@ export function createTagGeometry() {
 
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
-  // Center geometry along Z axis so (x, y) stays clean for local rotation
+  // Center geometry along Z axis so the front and back are symmetrically aligned around z=0
   geometry.computeBoundingBox();
   const zOffset = -(depth + bevelThickness * 2) / 2;
   geometry.translate(0, 0, zOffset);
@@ -124,47 +124,55 @@ function renderBrandCanvas(canvas) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // 1. Warm Ivory White Luxury Paper Base
-  ctx.fillStyle = '#F3F1EB';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cw = canvas.width;
+  const ch = canvas.height;
 
-  // 2. Subtle luxury paper grain
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.022)';
-  for (let i = 0; i < 4000; i++) {
-    const gx = Math.random() * canvas.width;
-    const gy = Math.random() * canvas.height;
+  // 1. Warm Ivory White Luxury Paper Base (#F5F3EC)
+  ctx.fillStyle = '#F5F3EC';
+  ctx.fillRect(0, 0, cw, ch);
+
+  // 2. Subtle luxury paper tactile grain
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.024)';
+  for (let i = 0; i < 5000; i++) {
+    const gx = Math.random() * cw;
+    const gy = Math.random() * ch;
     ctx.fillRect(gx, gy, 1.5, 1.5);
   }
 
-  // 3. Subtle debossed frame border matching chamfered silhouette
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.055)';
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(52, 52, canvas.width - 104, canvas.height - 104);
+  // 3. Subtle debossed frame border matching tag proportions
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(48, 48, cw - 96, ch - 96);
 
   // 4. Render the authentic original ZFITs SVG Logo in DARK CHARCOAL (#111114)
   ctx.save();
 
   try {
     const path = new Path2D(Z_LOGO_SVG_PATH);
-    ctx.save();
-    const scale = 4.8;
-    ctx.translate(canvas.width / 2 - (48 * scale) / 2, 700 - (46 * scale) / 2);
+    const scale = 5.6;
+    ctx.translate(cw / 2 - (48 * scale) / 2, ch * 0.44 - (46 * scale) / 2);
     ctx.scale(scale, scale);
     ctx.fillStyle = '#111114';
     ctx.fill(path);
-    ctx.restore();
   } catch {
-    // Fallback if Path2D is unavailable
+    // Canvas fallback if Path2D is unsupported
   }
+  ctx.restore();
 
-  // Draw the original ZFITs bold wordmark beneath the emblem
+  // 5. Draw the original ZFITs bold wordmark beneath the emblem
+  ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#111114';
-  ctx.font = '800 120px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Haas Regular", sans-serif';
+  ctx.font = '800 114px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Haas Regular", sans-serif';
   ctx.letterSpacing = '-2px';
-  ctx.fillText('ZFITS.', canvas.width / 2, 1000);
+  ctx.fillText('ZFITS.', cw / 2, ch * 0.62);
 
+  // Subtle luxury subtext
+  ctx.font = '600 32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillStyle = 'rgba(17, 17, 20, 0.55)';
+  ctx.letterSpacing = '8px';
+  ctx.fillText('STUDIO', cw / 2, ch * 0.70);
   ctx.restore();
 }
 
@@ -174,7 +182,7 @@ function renderBrandCanvas(canvas) {
 export function createTagFrontTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 1688;
+  canvas.height = 2048;
   renderBrandCanvas(canvas);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -185,14 +193,14 @@ export function createTagFrontTexture() {
 
 /**
  * Generates the high-resolution back texture with MATCHING VISUAL QUALITY:
- * - Identical ivory material
+ * - Identical ivory paper material
  * - Identical authentic ZFITs branding (readable and NOT mirrored)
  * - Matching debossed border and surface grain
  */
 export function createTagBackTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 1688;
+  canvas.height = 2048;
   renderBrandCanvas(canvas);
 
   const texture = new THREE.CanvasTexture(canvas);
