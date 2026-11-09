@@ -5,13 +5,23 @@ import './App.css';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isHeroRevealed, setIsHeroRevealed] = useState(false);
 
   return (
     <div className="zfits-root">
       {isLoading && (
-        <ZfitsLoader onComplete={() => setIsLoading(false)} />
+        <ZfitsLoader
+          onHeroRevealReady={() => setIsHeroRevealed(true)}
+          onComplete={() => setIsLoading(false)}
+        />
       )}
-      <Home />
+      <Home
+        isRevealed={isHeroRevealed}
+        onReplayLoader={() => {
+          setIsLoading(true);
+          setIsHeroRevealed(false);
+        }}
+      />
     </div>
   );
 }

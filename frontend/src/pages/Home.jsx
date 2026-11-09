@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import './Home.css';
 import char1 from '../assets/Characters/char1.png';
 import char4 from '../assets/Characters/char4.png';
@@ -98,7 +99,8 @@ const THEMES = [
   },
 ];
 
-export function Home({ onReplayLoader }) {
+export function Home({ isRevealed = true, onReplayLoader }) {
+  const containerRef = useRef(null);
   const [activeTheme, setActiveTheme] = useState(THEMES[0]);
   const [prevTheme, setPrevTheme] = useState(THEMES[0]);
 
@@ -107,6 +109,35 @@ export function Home({ onReplayLoader }) {
     setPrevTheme(activeTheme);
     setActiveTheme(newTheme);
   };
+
+  // Coordinated staggered hero entrance animation when revealed from loader cover
+  useEffect(() => {
+    if (!isRevealed || !containerRef.current) return;
+
+    const nav = containerRef.current.querySelector('.zfits-app-nav');
+    const heading = containerRef.current.querySelector('.app-hero-heading');
+    const sub = containerRef.current.querySelector('.app-hero-sub');
+    const cta = containerRef.current.querySelector('.app-hero-cta');
+    const cards = containerRef.current.querySelectorAll('.outfit-card');
+
+    const tl = gsap.timeline();
+
+    if (nav) {
+      tl.fromTo(nav, { y: -22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: 'power2.out' }, 0.05);
+    }
+    if (heading) {
+      tl.fromTo(heading, { y: 32, opacity: 0 }, { y: 0, opacity: 1, duration: 0.75, ease: 'power3.out' }, 0.15);
+    }
+    if (sub) {
+      tl.fromTo(sub, { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: 'power2.out' }, 0.25);
+    }
+    if (cta) {
+      tl.fromTo(cta, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: 'power2.out' }, 0.35);
+    }
+    if (cards && cards.length > 0) {
+      tl.fromTo(cards, { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, stagger: 0.08, ease: 'power2.out' }, 0.40);
+    }
+  }, [isRevealed]);
 
   const outfits = [
     {
@@ -149,6 +180,7 @@ export function Home({ onReplayLoader }) {
 
   return (
     <div
+      ref={containerRef}
       className="zfits-app-container"
       style={{
         '--theme-accent': activeTheme.accent,

@@ -117,6 +117,7 @@ export function TagString({ physics, onPullTrigger }) {
 
   // Handle direct grabbing of the rope
   const handlePointerDown = (e) => {
+    if (physics.isLocked) return;
     e.stopPropagation();
     setIsStringDragging(true);
 

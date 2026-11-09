@@ -1,48 +1,76 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import gsap from 'gsap';
 import { TagScene } from './TagScene';
 import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V5)
- * Master entry loader component:
- * - Truly suspended interactive 3D fashion tag coupled to a dynamic 12-particle Verlet rope
- * - Slim, narrow portrait aspect ratio (38-44vh desktop presence)
- * - Identical high-contrast ZFITs branding on both sides with full 360° unconstrained rotation
- * - Deliberate downward pull-to-enter trigger (ordinary swinging/dragging allows free exploration)
- * - Subtle skip & Escape key accessibility
+ * ZfitsLoader (V6)
+ * Coordinated 3D Hanging Tag Loader with Header Following & Full-Screen Cover Reveal:
+ * - Suspended 3D black paper tag with coupled Verlet rope physics
+ * - Real-time header translation following the user's downward pull
+ * - Deliberate downward pull detection triggers orchestrated website-opening sequence
+ * - Full-screen cover-down transition to unveil the homepage hero
+ * - Unobtrusive skip control with keyboard Escape support
  */
-export function ZfitsLoader({ onComplete }) {
+export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   const overlayRef = useRef(null);
   const masterGroupRef = useRef(null);
+  const headerRef = useRef(null);
+  const footerRef = useRef(null);
+  const coverRef = useRef(null);
   const isTransitioningRef = useRef(false);
 
   const [isTensionHigh, setIsTensionHigh] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
 
-  // Trigger hero reveal ONLY when user deliberately pulls down past threshold and releases
+  // Real-time synchronization: translate header down as tag is pulled down
+  const handlePullProgress = useCallback(({ pullPixels, isDraggingCard }) => {
+    if (isTransitioningRef.current || !headerRef.current) return;
+
+    if (isDraggingCard && pullPixels > 0) {
+      // Controlled motion ratio: 140px pull translates header down by ~50px
+      const headerY = Math.min(105, pullPixels * 0.38);
+      headerRef.current.style.transform = `translate3d(0, ${headerY}px, 0)`;
+    } else if (!isDraggingCard) {
+      // When released or during normal swinging, spring header back to top smoothly
+      gsap.to(headerRef.current, {
+        y: 0,
+        duration: 0.42,
+        ease: 'power3.out',
+        overwrite: 'auto',
+      });
+    }
+  }, []);
+
+  // Trigger coordinated opening sequence when user pulls down past threshold and releases
   const triggerReveal = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
-    LoaderTransition.animateHeroReveal(masterGroupRef.current, overlayRef.current, {
-      onComplete: () => {
-        if (onComplete) onComplete();
-      },
+    LoaderTransition.orchestrateOpeningSequence({
+      masterGroup: masterGroupRef.current,
+      headerEl: headerRef.current,
+      coverEl: coverRef.current,
+      loaderOverlayEl: overlayRef.current,
+      footerEl: footerRef.current,
+      onHeroRevealReady,
+      onComplete,
     });
-  }, [onComplete]);
+  }, [onHeroRevealReady, onComplete]);
 
   // Fast skip if user explicitly chooses to skip
   const handleSkip = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
-    LoaderTransition.animateSkip(overlayRef.current, {
-      onComplete: () => {
-        if (onComplete) onComplete();
-      },
+    LoaderTransition.animateSkip({
+      coverEl: coverRef.current,
+      loaderOverlayEl: overlayRef.current,
+      onHeroRevealReady,
+      onComplete,
     });
-  }, [onComplete]);
+  }, [onHeroRevealReady, onComplete]);
 
   // Handle keyboard Escape for manual skip
   useEffect(() => {
@@ -65,50 +93,62 @@ export function ZfitsLoader({ onComplete }) {
   }, [hasEntered]);
 
   return (
-    <div ref={overlayRef} className="zfits-3d-loader-root" role="dialog" aria-label="ZFITs Entry Experience">
-      {/* Editorial Header */}
-      <header className="loader-header">
-        <div className="loader-brand">
-          <span className="loader-brand-title">ZFITs</span>
-          <span className="loader-brand-sub">/ AI Personal Stylist</span>
+    <>
+      <div ref={overlayRef} className="zfits-3d-loader-root" role="dialog" aria-label="ZFITs Entry Experience">
+        {/* Synchronized Editorial Header */}
+        <header ref={headerRef} className="loader-header">
+          <div className="loader-brand">
+            <span className="loader-brand-title">ZFITs</span>
+            <span className="loader-brand-sub">/ AI Personal Stylist</span>
+          </div>
+
+          <button
+            className="loader-skip-btn"
+            onClick={handleSkip}
+            aria-label="Skip interactive loader"
+            title="Press Esc or click to skip"
+          >
+            <span>Skip</span>
+            <span aria-hidden="true">↵</span>
+          </button>
+        </header>
+
+        {/* Interactive 3D WebGL Canvas Layer */}
+        <div className="zfits-3d-canvas-wrap">
+          <TagScene
+            masterGroupRef={masterGroupRef}
+            onPullTrigger={triggerReveal}
+            onPullProgress={handlePullProgress}
+            onTensionChange={setIsTensionHigh}
+            onSceneReady={handleSceneReady}
+          />
         </div>
 
-        <button
-          className="loader-skip-btn"
-          onClick={handleSkip}
-          aria-label="Skip interactive loader"
-          title="Press Esc or click to skip"
-        >
-          <span>Skip</span>
-          <span aria-hidden="true">↵</span>
-        </button>
-      </header>
+        {/* Unobtrusive Interaction Guidance */}
+        <footer ref={footerRef} className="loader-footer">
+          <div className={`loader-hint ${isTensionHigh ? 'tension-high' : ''}`}>
+            <span>{isTensionHigh ? 'Release to Enter' : 'Drag Card or Cord to Swing'}</span>
+            <span className="loader-hint-dot" aria-hidden="true" />
+            <span>{isTensionHigh ? 'ZFITs Studio' : 'Pull Down to Enter'}</span>
+          </div>
 
-      {/* Interactive 3D WebGL Canvas Layer */}
-      <div className="zfits-3d-canvas-wrap">
-        <TagScene
-          masterGroupRef={masterGroupRef}
-          onPullTrigger={triggerReveal}
-          onTensionChange={setIsTensionHigh}
-          onSceneReady={handleSceneReady}
-        />
+          <div className={`loader-pull-indicator ${isTensionHigh ? 'tension-high' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="7 13 12 18 17 13" />
+              <polyline points="7 6 12 11 17 6" />
+            </svg>
+          </div>
+        </footer>
       </div>
 
-      {/* Subtle Unobtrusive Interaction Guidance */}
-      <footer className="loader-footer">
-        <div className={`loader-hint ${isTensionHigh ? 'tension-high' : ''}`}>
-          <span>{isTensionHigh ? 'Release to Enter' : 'Drag Card or Cord to Swing'}</span>
-          <span className="loader-hint-dot" aria-hidden="true" />
-          <span>{isTensionHigh ? 'ZFITs Studio' : 'Pull Down to Enter'}</span>
+      {/* Dedicated Full-Screen Cover-Down Curtain */}
+      <div ref={coverRef} className="zfits-cover-curtain" aria-hidden="true">
+        <div className="cover-leading-glow" />
+        <div className="cover-brand-mark">
+          <span className="cover-brand-title">ZFITS</span>
+          <span className="cover-brand-sub">STUDIO</span>
         </div>
-
-        <div className={`loader-pull-indicator ${isTensionHigh ? 'tension-high' : ''}`}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="7 13 12 18 17 13" />
-            <polyline points="7 6 12 11 17 6" />
-          </svg>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }

@@ -16,19 +16,18 @@ export const INTERACTION_STATES = {
 };
 
 /**
- * UnifiedTagPhysics
- * Unified coupled Verlet rope and lightweight paperboard hang tag simulation:
+ * UnifiedTagPhysics (V6)
+ * Master coupled Verlet rope and lightweight paperboard hang tag simulation:
  * - 12-particle dynamic Verlet rope with distance relaxation constraints
  * - Fixed ceiling anchor at node 0: (0, 2.15, 0)
  * - Bottom node (Node 11) is the card's punched eyelet
- * - Calibrated for ultra-thin lightweight paperboard (low inertia, crisp agile rotational response)
- * - Full 360° unconstrained rotation on yaw with momentum preservation
- * - True torque: τ = r × F (corner dragging produces distinct rotational responses)
- * - Deliberate downward pull detection (threshold 0.42 world units) to enter hero
+ * - Real-time downward pull tracking for coordinated header translation
+ * - Deliberate downward pull detection (displacement, velocity, duration, vertical intent)
+ * - Physics-to-animation handoff lock to avoid competing transforms with GSAP
  */
 export class UnifiedTagPhysics {
   constructor(options = {}) {
-    this.pullThreshold = options.pullThreshold || 0.42;
+    this.pullThreshold = options.pullThreshold || 0.40;
     this.state = INTERACTION_STATES.INITIALIZING;
 
     // Ceiling Anchor (fixed)
@@ -43,7 +42,6 @@ export class UnifiedTagPhysics {
     this.gravity = -9.8;
 
     // Particles: Node 0 = ceiling, Node 11 = card eyelet
-    // Lightweight paperboard mass (0.14) gives authentic paper suspension physics
     this.nodes = [];
     for (let i = 0; i < this.numNodes; i++) {
       const t = i / (this.numNodes - 1);
@@ -63,7 +61,6 @@ export class UnifiedTagPhysics {
     this.splinePoints = this.nodes.map(n => new THREE.Vector3(n.x, n.y, n.z));
 
     // Card 3D Angular Orientation
-    // Subtle initial 3D pose so razor-thin edge and lighting are visible immediately
     this.rotation = {
       x: 0.04,  // Pitch (tilt forward/back)
       y: 0.24,  // Yaw (full 360° rotational twist around cord)
@@ -98,7 +95,7 @@ export class UnifiedTagPhysics {
       z: 2.2,
     };
 
-    // Drag interaction
+    // Drag interaction tracking
     this.dragTarget = null; // 'CARD' or 'STRING'
     this.grabbedStringNode = -1;
     this.stringGrabPos = new THREE.Vector3();
@@ -107,19 +104,44 @@ export class UnifiedTagPhysics {
     this.pointerVelocity = { x: 0, y: 0 };
     this.cardDragOffset = new THREE.Vector3();
 
-    // Pull tracking for hero transition (reset per drag action)
+    // Pull tracking for header translation and hero reveal
+    this.dragStartTime = 0;
+    this.startClientX = 0;
+    this.startClientY = 0;
+    this.pullPixels = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
+    this.isTriggerReady = false;
+    this.isLocked = false;
+  }
+
+  /**
+   * Locks the physics engine when handing off to GSAP transition timeline
+   */
+  lock() {
+    this.isLocked = true;
+    this.dragTarget = null;
+    this.state = INTERACTION_STATES.ENTERING_HERO;
+  }
+
+  unlock() {
+    this.isLocked = false;
+    this.state = INTERACTION_STATES.IDLE;
   }
 
   /**
    * Card grabbed at pointer position
    */
   startCardDrag(clientX, clientY, localHitPoint = null) {
+    if (this.isLocked) return;
+
     this.dragTarget = 'CARD';
     this.state = INTERACTION_STATES.CARD_GRABBED;
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
+    this.startClientX = clientX;
+    this.startClientY = clientY;
+    this.dragStartTime = performance.now();
     this.pointerVelocity.x = 0;
     this.pointerVelocity.y = 0;
 
@@ -135,14 +157,18 @@ export class UnifiedTagPhysics {
 
     const bottomNode = this.nodes[this.numNodes - 1];
     this.cardDragOffset.set(bottomNode.x, bottomNode.y, bottomNode.z);
+    this.pullPixels = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
+    this.isTriggerReady = false;
   }
 
   /**
    * String grabbed at world hit position
    */
   startStringDrag(hitPoint, clientX, clientY) {
+    if (this.isLocked) return;
+
     this.dragTarget = 'STRING';
     this.state = INTERACTION_STATES.STRING_GRABBED;
     this.lastPointerPos.x = clientX;
@@ -167,15 +193,17 @@ export class UnifiedTagPhysics {
 
     this.grabbedStringNode = closestIndex;
     this.stringGrabPos.copy(hitPoint);
+    this.pullPixels = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
+    this.isTriggerReady = false;
   }
 
   /**
    * Update active drag
    */
   updateDrag(clientX, clientY, deltaWorldX, deltaWorldY) {
-    if (!this.dragTarget) return;
+    if (this.isLocked || !this.dragTarget) return;
     this.state = INTERACTION_STATES.DRAGGING;
 
     const pvx = clientX - this.lastPointerPos.x;
@@ -187,15 +215,29 @@ export class UnifiedTagPhysics {
 
     if (this.dragTarget === 'CARD') {
       const bottomNode = this.nodes[this.numNodes - 1];
-      // Move bottom attachment particle of the rope directly with cursor
       bottomNode.x = this.cardDragOffset.x + deltaWorldX;
       bottomNode.y = this.cardDragOffset.y + deltaWorldY;
       bottomNode.z = this.cardDragOffset.z - deltaWorldY * 0.15;
 
-      // Track downward pull for hero reveal
-      if (deltaWorldY < 0) {
-        this.currentPullY = -deltaWorldY;
+      // Calculate directional intent:
+      const screenDx = clientX - this.startClientX;
+      const screenDy = clientY - this.startClientY;
+
+      // Downward pull detection: must be predominantly downward (screenDy > 0)
+      if (screenDy > 10 && screenDy > Math.abs(screenDx) * 0.75) {
+        this.pullPixels = screenDy;
+        this.currentPullY = Math.max(0, -deltaWorldY);
         this.maxPullY = Math.max(this.maxPullY, this.currentPullY);
+
+        const pullDuration = performance.now() - this.dragStartTime;
+        // Activation criteria: threshold reached + positive downward velocity + minimal duration
+        if (this.currentPullY >= this.pullThreshold && pullDuration >= 90) {
+          this.isTriggerReady = true;
+        }
+      } else {
+        // Pure horizontal swing or upward motion does NOT move header or trigger transition
+        this.pullPixels = 0;
+        this.currentPullY = 0;
       }
 
       // Compute torque applied to the card: τ = r × F
@@ -207,7 +249,6 @@ export class UnifiedTagPhysics {
       const fz = -deltaWorldY * 10.0;
 
       const tauX = ry * fz - rz * fy;
-      // Twist (Y-axis): pulling on the left (rx < 0) vs right (rx > 0) creates opposite yaw torque!
       const tauY = rz * fx - rx * fz - rx * fy * 1.5;
       const tauZ = rx * fy - ry * fx;
 
@@ -216,7 +257,6 @@ export class UnifiedTagPhysics {
       this.velocity.z += (tauZ / this.inertia.z) * 0.016;
 
     } else if (this.dragTarget === 'STRING' && this.grabbedStringNode > 0) {
-      // Move grabbed rope node with pointer
       const node = this.nodes[this.grabbedStringNode];
       node.x = this.stringGrabPos.x + deltaWorldX;
       node.y = this.stringGrabPos.y + deltaWorldY;
@@ -225,27 +265,27 @@ export class UnifiedTagPhysics {
   }
 
   /**
-   * Pointer released: preserve momentum on both rope and card
+   * Pointer released: preserve momentum or trigger intentional reveal
    */
   release() {
-    if (!this.dragTarget) return false;
+    if (this.isLocked || !this.dragTarget) return false;
 
     const wasCard = this.dragTarget === 'CARD';
-    // Deliberate pull threshold: only downward pull past threshold triggers hero
-    const wasDeliberatePull = wasCard && (this.maxPullY >= this.pullThreshold);
+    const wasDeliberatePull = wasCard && (this.isTriggerReady || this.maxPullY >= this.pullThreshold);
 
     this.dragTarget = null;
     this.grabbedStringNode = -1;
+    this.pullPixels = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
+    this.isTriggerReady = false;
 
     if (wasDeliberatePull) {
-      this.state = INTERACTION_STATES.ENTERING_HERO;
+      this.lock();
       return true;
     }
 
     if (wasCard) {
-      // Transfer pointer release velocity to bottom node and card rotation
       const bottomNode = this.nodes[this.numNodes - 1];
       const vx = this.pointerVelocity.x * 0.0035;
       const vy = -this.pointerVelocity.y * 0.0035;
@@ -253,7 +293,6 @@ export class UnifiedTagPhysics {
       bottomNode.oldX = bottomNode.x - vx;
       bottomNode.oldY = bottomNode.y - vy;
 
-      // Angular impulse calibrated for lightweight paperboard
       const rx = this.dragLeverArm.x;
       const ry = this.dragLeverArm.y;
       this.velocity.z += CLAMP((-ry * vx + rx * vy) * 36.0, -16, 16);
@@ -276,19 +315,30 @@ export class UnifiedTagPhysics {
    * Advances simulation step
    */
   step(deltaTime, totalTime) {
+    if (this.isLocked) {
+      return {
+        cardPosition: {
+          x: this.nodes[this.numNodes - 1].x,
+          y: this.nodes[this.numNodes - 1].y,
+          z: this.nodes[this.numNodes - 1].z,
+        },
+        rotation: this.rotation,
+        splinePoints: this.splinePoints,
+        pullPixels: 0,
+        pullProgress: 0,
+        isTensionHigh: false,
+        isTriggerReady: false,
+        state: this.state,
+      };
+    }
+
     const dt = Math.min(0.025, Math.max(0.004, deltaTime));
     const dtSq = dt * dt;
 
     // 1. Step Verlet Rope Nodes
     for (let i = 1; i < this.numNodes; i++) {
-      // Pin grabbed node during drag
-      if (this.dragTarget === 'STRING' && i === this.grabbedStringNode) {
-        continue;
-      }
-      // Pin bottom node during card drag
-      if (this.dragTarget === 'CARD' && i === this.numNodes - 1) {
-        continue;
-      }
+      if (this.dragTarget === 'STRING' && i === this.grabbedStringNode) continue;
+      if (this.dragTarget === 'CARD' && i === this.numNodes - 1) continue;
 
       const node = this.nodes[i];
       const vx = (node.x - node.oldX) * this.ropeDamping;
@@ -306,7 +356,6 @@ export class UnifiedTagPhysics {
 
     // 2. Solve Distance Constraints iteratively (Relaxation)
     for (let iter = 0; iter < this.iterations; iter++) {
-      // Pin ceiling anchor
       this.nodes[0].x = this.ceilingAnchor.x;
       this.nodes[0].y = this.ceilingAnchor.y;
       this.nodes[0].z = this.ceilingAnchor.z;
@@ -385,7 +434,6 @@ export class UnifiedTagPhysics {
     this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
     this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
 
-    // Position of the card's punched hole is EXACTLY bottom node of the rope
     const bottomNode = this.nodes[this.numNodes - 1];
     const cardPosition = {
       x: bottomNode.x,
@@ -393,13 +441,17 @@ export class UnifiedTagPhysics {
       z: bottomNode.z,
     };
 
-    const isTensionHigh = this.maxPullY >= this.pullThreshold * 0.75;
+    const pullProgress = CLAMP(this.currentPullY / this.pullThreshold, 0, 1);
+    const isTensionHigh = pullProgress >= 0.75;
 
     return {
       cardPosition,
       rotation: this.rotation,
       splinePoints: this.splinePoints,
+      pullPixels: this.pullPixels,
+      pullProgress,
       isTensionHigh,
+      isTriggerReady: this.isTriggerReady,
       state: this.state,
     };
   }

@@ -74,6 +74,7 @@ export function HangingTag({ physics, onPullTrigger }) {
 
   // Pointer Interaction Handling with global window listeners
   const handlePointerDown = (e) => {
+    if (physics.isLocked) return;
     e.stopPropagation();
     setIsDragging(true);
 
