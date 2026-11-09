@@ -183,12 +183,12 @@ export function TagString({ physics, onPullTrigger }) {
 
       {/* Invisible Interactive Raycast Collider around the cord */}
       <mesh
-        position={[0, (physics.ceilingY + 0.6) / 2, 0]}
+        position={[0, 0.95, 0]}
         onPointerDown={handlePointerDown}
         onPointerOver={() => setIsHovered(true)}
         onPointerOut={() => setIsHovered(false)}
       >
-        <cylinderGeometry args={[0.075, 0.075, physics.ceilingY - 0.6, 8]} />
+        <cylinderGeometry args={[0.075, 0.075, 1.1, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>

@@ -1,67 +1,46 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import gsap from 'gsap';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { TagScene } from './TagScene';
 import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V7)
- * Coordinated 3D Hanging Tag Loader with Solid Header Detachment & Warm Ivory Cover Reveal:
- * - Suspended 3D black paper tag with coupled Verlet rope physics
- * - Uncapped real-time header translation following the user's downward pull
- * - On deliberate pull, the entire header panel physically DETACHES and FALLS OUT of the viewport
- * - Full-screen warm ivory and white cover-down transition to unveil the homepage hero
- * - Pure editorial UI: No skip button cluttering the scene
+ * ZfitsLoader (V8)
+ * Physically Connected Installation:
+ * - 3D Full-Width Ivory Header Panel
+ * - Black Braided Cotton Suspension Rope connected to the header's underside bracket
+ * - Ultra-Thin Black ZFITs Fashion Tag hanging beneath
+ * - Pure editorial installation: No skip buttons, no drag hints, no UI clutter
+ * - Downward pull releases header breakaway constraint -> entire assembly falls under real gravity
+ * - Full-screen warm ivory cover transition reveals the ZFITs homepage hero
  */
 export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   const overlayRef = useRef(null);
-  const masterGroupRef = useRef(null);
-  const headerRef = useRef(null);
-  const footerRef = useRef(null);
   const coverRef = useRef(null);
   const isTransitioningRef = useRef(false);
 
-  const [isTensionHigh, setIsTensionHigh] = useState(false);
-  const [hasEntered, setHasEntered] = useState(false);
-
-  // Real-time synchronization: translate header down as tag is pulled down (no artificial 105px cap)
-  const handlePullProgress = useCallback(({ pullPixels, screenDx, isDraggingCard }) => {
-    if (isTransitioningRef.current || !headerRef.current) return;
-
-    if (isDraggingCard && pullPixels > 0) {
-      // Responsive 1:0.52 motion ratio without artificial clamp
-      const headerY = pullPixels * 0.52;
-      const tilt = typeof screenDx === 'number' ? Math.max(-2.5, Math.min(2.5, (screenDx / 350) * 2)) : 0;
-      headerRef.current.style.transform = `translate3d(0, ${headerY}px, 0) rotate(${tilt}deg)`;
-    } else if (!isDraggingCard) {
-      // When released without triggering threshold, smoothly spring header back to top
-      gsap.to(headerRef.current, {
-        y: 0,
-        rotation: 0,
-        duration: 0.45,
-        ease: 'power3.out',
-        overwrite: 'auto',
-      });
-    }
+  // Disable page scrolling during the interactive loader experience
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
   }, []);
 
-  // Trigger coordinated opening sequence when user pulls down past threshold and releases
-  const triggerReveal = useCallback(() => {
+  // Called when the falling physical assembly exits past the bottom of the viewport under gravity
+  const handleAssemblyExit = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
-    LoaderTransition.orchestrateOpeningSequence({
-      masterGroup: masterGroupRef.current,
-      headerEl: headerRef.current,
+    LoaderTransition.orchestrateAssemblyExit({
       coverEl: coverRef.current,
       loaderOverlayEl: overlayRef.current,
-      footerEl: footerRef.current,
       onHeroRevealReady,
       onComplete,
     });
   }, [onHeroRevealReady, onComplete]);
 
-  // Keyboard Escape accessibility shortcut (no visible button)
+  // Keyboard Escape accessibility fallback
   const handleKeyboardSkip = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
@@ -84,52 +63,18 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyboardSkip]);
 
-  // Once 3D scene mounts and is ready, trigger smooth entrance drop
-  const handleSceneReady = useCallback(() => {
-    if (hasEntered) return;
-    setHasEntered(true);
-    if (masterGroupRef.current) {
-      LoaderTransition.animateEntry(masterGroupRef.current);
-    }
-  }, [hasEntered]);
-
   return (
     <>
-      <div ref={overlayRef} className="zfits-3d-loader-root" role="dialog" aria-label="ZFITs Entry Experience">
-        {/* Synchronized Editorial Header (Solid Detachable Panel) */}
-        <header ref={headerRef} className="loader-header">
-          <div className="loader-brand">
-            <span className="loader-brand-title">ZFITs</span>
-            <span className="loader-brand-sub">/ AI Personal Stylist</span>
-          </div>
-        </header>
-
+      <div
+        ref={overlayRef}
+        className="zfits-3d-loader-root"
+        role="dialog"
+        aria-label="ZFITs Entry Experience"
+      >
         {/* Interactive 3D WebGL Canvas Layer */}
         <div className="zfits-3d-canvas-wrap">
-          <TagScene
-            masterGroupRef={masterGroupRef}
-            onPullTrigger={triggerReveal}
-            onPullProgress={handlePullProgress}
-            onTensionChange={setIsTensionHigh}
-            onSceneReady={handleSceneReady}
-          />
+          <TagScene onAssemblyExit={handleAssemblyExit} />
         </div>
-
-        {/* Unobtrusive Interaction Guidance */}
-        <footer ref={footerRef} className="loader-footer">
-          <div className={`loader-hint ${isTensionHigh ? 'tension-high' : ''}`}>
-            <span>{isTensionHigh ? 'Release to Enter' : 'Drag Card or Cord to Swing'}</span>
-            <span className="loader-hint-dot" aria-hidden="true" />
-            <span>{isTensionHigh ? 'ZFITs Studio' : 'Pull Down to Enter'}</span>
-          </div>
-
-          <div className={`loader-pull-indicator ${isTensionHigh ? 'tension-high' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="7 13 12 18 17 13" />
-              <polyline points="7 6 12 11 17 6" />
-            </svg>
-          </div>
-        </footer>
       </div>
 
       {/* Full-Screen Warm Ivory & White Cover-Down Curtain */}

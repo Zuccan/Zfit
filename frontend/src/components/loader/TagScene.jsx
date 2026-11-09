@@ -1,23 +1,32 @@
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
+import { HeaderPanel } from './HeaderPanel';
 import { HangingTag } from './HangingTag';
 import { TagString } from './TagString';
 import { UnifiedTagPhysics } from './UnifiedTagPhysics';
 
 /**
- * TagSceneContent
- * Houses the unified coupled 3D physics, studio lighting, and backdrop shadow projection.
+ * TagSceneContent (V8)
+ * Houses the physically connected installation:
+ * - 3D Full-Width Ivory Header Panel at the top
+ * - Black braided cotton rope originating from the underside bracket
+ * - Ultra-thin black ZFITs fashion tag hanging from the rope
+ * - Real directional shadow casting from all physical bodies onto backdrop
  */
 function TagSceneContent({
-  onPullTrigger,
+  onAssemblyExit,
   onPullProgress,
   onTensionChange,
-  masterGroupRef,
   onSceneReady,
 }) {
-  // Single unified physics engine coordinating both rope particles and tag rigid-body
-  const physics = useMemo(() => new UnifiedTagPhysics({ ceilingY: 2.15, pullThreshold: 0.40 }), []);
+  // Single unified physics engine coordinating header rigid-body, rope particles, and tag
+  const physics = useMemo(() => {
+    return new UnifiedTagPhysics({
+      pullThreshold: 0.40,
+      onAssemblyExit,
+    });
+  }, [onAssemblyExit]);
 
   useEffect(() => {
     if (onSceneReady) {
@@ -44,28 +53,28 @@ function TagSceneContent({
 
   return (
     <>
-      {/* Balanced Studio Lighting calibrated for black cardstock */}
-      <ambientLight intensity={0.70} color="#ffffff" />
+      {/* Balanced Softbox Studio Lighting */}
+      <ambientLight intensity={0.72} color="#ffffff" />
 
-      {/* Primary Key Directional Light: Casts crisp directional shadow onto backdrop */}
+      {/* Primary Key Directional Light: Casts soft realistic directional shadows onto backdrop */}
       <directionalLight
-        position={[2.4, 3.8, 3.0]}
+        position={[2.4, 4.0, 3.2]}
         intensity={1.85}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
-        shadow-camera-far={10}
-        shadow-camera-left={-2}
-        shadow-camera-right={2}
-        shadow-camera-top={3}
-        shadow-camera-bottom={-3}
+        shadow-camera-far={12}
+        shadow-camera-left={-4}
+        shadow-camera-right={4}
+        shadow-camera-top={3.5}
+        shadow-camera-bottom={-3.5}
         shadow-bias={-0.00015}
       />
 
-      {/* Edge & Rim Light: Grazes beveled corners and cord for crisp profile */}
+      {/* Edge & Rim Light: Grazes beveled paper edges and cotton cord */}
       <directionalLight
-        position={[-2.8, 2.0, -2.2]}
+        position={[-3.0, 2.2, -2.2]}
         intensity={1.25}
         color="#edf2ff"
       />
@@ -77,22 +86,25 @@ function TagSceneContent({
         color="#fff8f2"
       />
 
-      {/* Master Group: Decouples GSAP entry/exit transitions from inner physics */}
-      <group ref={masterGroupRef} position={[0, 0, 0]}>
-        {/* Dynamic Braided Cotton Suspension Rope */}
-        <TagString physics={physics} onPullTrigger={onPullTrigger} />
+      {/* --- THE CONNECTED 3D PHYSICAL INSTALLATION --- */}
+      <group position={[0, 0, 0]}>
+        {/* 1. Full-Width Solid Ivory Header Panel */}
+        <HeaderPanel physics={physics} />
 
-        {/* 3D Hanging Fashion Tag */}
-        <HangingTag physics={physics} onPullTrigger={onPullTrigger} />
+        {/* 2. Dynamic Braided Cotton Rope (Originates directly from header's underside bracket) */}
+        <TagString physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+
+        {/* 3. Ultra-Thin Fashion Tag (Hangs physically from lower end of rope) */}
+        <HangingTag physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
       </group>
 
-      {/* Directional Backdrop Shadow Wall */}
+      {/* Studio Backdrop Wall receiving moving directional shadows from header, rope & tag */}
       <mesh position={[0, 0.45, -0.65]} receiveShadow>
-        <planeGeometry args={[14, 14]} />
+        <planeGeometry args={[16, 16]} />
         <shadowMaterial opacity={0.16} />
       </mesh>
 
-      {/* Delicate Contact Floor Shadow beneath the hanging object */}
+      {/* Subtle floor contact shadow beneath the installation */}
       <ContactShadows
         position={[0, -1.35, 0]}
         opacity={0.24}
@@ -112,10 +124,9 @@ function TagSceneContent({
  * balanced portrait aspect ratio, and studio cinematography.
  */
 export function TagScene({
-  onPullTrigger,
+  onAssemblyExit,
   onPullProgress,
   onTensionChange,
-  masterGroupRef,
   onSceneReady,
 }) {
   return (
@@ -135,10 +146,9 @@ export function TagScene({
       }}
     >
       <TagSceneContent
-        onPullTrigger={onPullTrigger}
+        onAssemblyExit={onAssemblyExit}
         onPullProgress={onPullProgress}
         onTensionChange={onTensionChange}
-        masterGroupRef={masterGroupRef}
         onSceneReady={onSceneReady}
       />
     </Canvas>
