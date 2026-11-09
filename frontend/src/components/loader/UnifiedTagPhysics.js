@@ -108,6 +108,7 @@ export class UnifiedTagPhysics {
     this.dragStartTime = 0;
     this.startClientX = 0;
     this.startClientY = 0;
+    this.screenDx = 0;
     this.pullPixels = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
@@ -222,6 +223,7 @@ export class UnifiedTagPhysics {
       // Calculate directional intent:
       const screenDx = clientX - this.startClientX;
       const screenDy = clientY - this.startClientY;
+      this.screenDx = screenDx;
 
       // Downward pull detection: must be predominantly downward (screenDy > 0)
       if (screenDy > 10 && screenDy > Math.abs(screenDx) * 0.75) {
@@ -276,6 +278,7 @@ export class UnifiedTagPhysics {
     this.dragTarget = null;
     this.grabbedStringNode = -1;
     this.pullPixels = 0;
+    this.screenDx = 0;
     this.currentPullY = 0;
     this.maxPullY = 0;
     this.isTriggerReady = false;
@@ -449,6 +452,7 @@ export class UnifiedTagPhysics {
       rotation: this.rotation,
       splinePoints: this.splinePoints,
       pullPixels: this.pullPixels,
+      screenDx: this.screenDx,
       pullProgress,
       isTensionHigh,
       isTriggerReady: this.isTriggerReady,

@@ -5,13 +5,13 @@ import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V6)
- * Coordinated 3D Hanging Tag Loader with Header Following & Full-Screen Cover Reveal:
+ * ZfitsLoader (V7)
+ * Coordinated 3D Hanging Tag Loader with Solid Header Detachment & Warm Ivory Cover Reveal:
  * - Suspended 3D black paper tag with coupled Verlet rope physics
- * - Real-time header translation following the user's downward pull
- * - Deliberate downward pull detection triggers orchestrated website-opening sequence
- * - Full-screen cover-down transition to unveil the homepage hero
- * - Unobtrusive skip control with keyboard Escape support
+ * - Uncapped real-time header translation following the user's downward pull
+ * - On deliberate pull, the entire header panel physically DETACHES and FALLS OUT of the viewport
+ * - Full-screen warm ivory and white cover-down transition to unveil the homepage hero
+ * - Pure editorial UI: No skip button cluttering the scene
  */
 export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   const overlayRef = useRef(null);
@@ -24,19 +24,21 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   const [isTensionHigh, setIsTensionHigh] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
 
-  // Real-time synchronization: translate header down as tag is pulled down
-  const handlePullProgress = useCallback(({ pullPixels, isDraggingCard }) => {
+  // Real-time synchronization: translate header down as tag is pulled down (no artificial 105px cap)
+  const handlePullProgress = useCallback(({ pullPixels, screenDx, isDraggingCard }) => {
     if (isTransitioningRef.current || !headerRef.current) return;
 
     if (isDraggingCard && pullPixels > 0) {
-      // Controlled motion ratio: 140px pull translates header down by ~50px
-      const headerY = Math.min(105, pullPixels * 0.38);
-      headerRef.current.style.transform = `translate3d(0, ${headerY}px, 0)`;
+      // Responsive 1:0.52 motion ratio without artificial clamp
+      const headerY = pullPixels * 0.52;
+      const tilt = typeof screenDx === 'number' ? Math.max(-2.5, Math.min(2.5, (screenDx / 350) * 2)) : 0;
+      headerRef.current.style.transform = `translate3d(0, ${headerY}px, 0) rotate(${tilt}deg)`;
     } else if (!isDraggingCard) {
-      // When released or during normal swinging, spring header back to top smoothly
+      // When released without triggering threshold, smoothly spring header back to top
       gsap.to(headerRef.current, {
         y: 0,
-        duration: 0.42,
+        rotation: 0,
+        duration: 0.45,
         ease: 'power3.out',
         overwrite: 'auto',
       });
@@ -59,8 +61,8 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     });
   }, [onHeroRevealReady, onComplete]);
 
-  // Fast skip if user explicitly chooses to skip
-  const handleSkip = useCallback(() => {
+  // Keyboard Escape accessibility shortcut (no visible button)
+  const handleKeyboardSkip = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
@@ -72,16 +74,15 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     });
   }, [onHeroRevealReady, onComplete]);
 
-  // Handle keyboard Escape for manual skip
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        handleSkip();
+        handleKeyboardSkip();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSkip]);
+  }, [handleKeyboardSkip]);
 
   // Once 3D scene mounts and is ready, trigger smooth entrance drop
   const handleSceneReady = useCallback(() => {
@@ -95,22 +96,12 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   return (
     <>
       <div ref={overlayRef} className="zfits-3d-loader-root" role="dialog" aria-label="ZFITs Entry Experience">
-        {/* Synchronized Editorial Header */}
+        {/* Synchronized Editorial Header (Solid Detachable Panel) */}
         <header ref={headerRef} className="loader-header">
           <div className="loader-brand">
             <span className="loader-brand-title">ZFITs</span>
             <span className="loader-brand-sub">/ AI Personal Stylist</span>
           </div>
-
-          <button
-            className="loader-skip-btn"
-            onClick={handleSkip}
-            aria-label="Skip interactive loader"
-            title="Press Esc or click to skip"
-          >
-            <span>Skip</span>
-            <span aria-hidden="true">↵</span>
-          </button>
         </header>
 
         {/* Interactive 3D WebGL Canvas Layer */}
@@ -141,7 +132,7 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
         </footer>
       </div>
 
-      {/* Dedicated Full-Screen Cover-Down Curtain */}
+      {/* Full-Screen Warm Ivory & White Cover-Down Curtain */}
       <div ref={coverRef} className="zfits-cover-curtain" aria-hidden="true">
         <div className="cover-leading-glow" />
         <div className="cover-brand-mark">

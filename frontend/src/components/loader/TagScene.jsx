@@ -34,6 +34,7 @@ function TagSceneContent({
     if (onPullProgress) {
       onPullProgress({
         pullPixels: result.pullPixels,
+        screenDx: result.screenDx,
         pullProgress: result.pullProgress,
         isTriggerReady: result.isTriggerReady,
         isDraggingCard: physics.dragTarget === 'CARD',

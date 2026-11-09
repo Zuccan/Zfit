@@ -1,14 +1,14 @@
 import gsap from 'gsap';
 
 /**
- * LoaderTransition (V6)
+ * LoaderTransition (V7)
  * Orchestrates the coordinated 7-phase website-opening animation sequence:
  * - Phase A: Deliberate pull crosses activation threshold
- * - Phase B: Tag physical movement hands off smoothly to downward acceleration
- * - Phase C: Header follows the downward motion in sync
- * - Phase D: Full-screen cover curtain descends across the viewport
+ * - Phase B: Tag accelerates downward through the bottom of the viewport
+ * - Phase C: Entire header panel physically DETACHES and FALLS OUT of the viewport as a solid panel
+ * - Phase D: Full-screen warm ivory & white cover curtain descends across the viewport
  * - Phase E: Hero becomes ready and visible behind the descending cover
- * - Phase F: Cover wipes away revealing the ZFITs homepage hero
+ * - Phase F: Cover wipes away downward revealing the ZFITs homepage hero
  * - Phase G: Clean teardown of loader resources and temporary listeners
  */
 export const LoaderTransition = {
@@ -67,12 +67,12 @@ export const LoaderTransition = {
 
     const tl = gsap.timeline();
 
-    // PHASE B: Tag accelerates downward through bottom of viewport
+    // PHASE B: Tag accelerates downward completely past the bottom of viewport
     if (masterGroup) {
       tl.to(masterGroup.position, {
-        y: -2.8,
-        z: 1.4,
-        duration: 0.65,
+        y: -3.8,
+        z: 1.6,
+        duration: 0.82,
         ease: 'power2.in',
       }, 0);
 
@@ -80,39 +80,42 @@ export const LoaderTransition = {
         x: 1.15,
         y: 1.15,
         z: 1.15,
-        duration: 0.65,
+        duration: 0.82,
         ease: 'power2.in',
       }, 0);
     }
 
-    // PHASE C: Header follows downward movement smoothly
+    // PHASE C: The entire header panel physically DETACHES and FALLS OUT of the viewport as a SOLID PANEL
     if (headerEl) {
-      const dropDistance = Math.min(260, window.innerHeight * 0.32);
+      const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1000;
+      const fullFallDistance = viewportHeight + 200;
+
       tl.to(headerEl, {
-        y: dropDistance,
-        opacity: 0,
-        duration: 0.58,
+        y: fullFallDistance,
+        rotation: (Math.random() - 0.5) * 3, // Subtle natural physical tilt as it falls
+        duration: 0.82,
         ease: 'power2.in',
+        // Opacity is preserved: it falls as a SOLID panel without premature fading!
       }, 0);
     }
 
     // Footer indicator slides away
     if (footerEl) {
       tl.to(footerEl, {
-        y: 60,
+        y: 120,
         opacity: 0,
-        duration: 0.35,
+        duration: 0.45,
         ease: 'power2.in',
       }, 0);
     }
 
-    // PHASE D: Full-screen cover curtain descends across the viewport
+    // PHASE D: Full-screen warm ivory & white cover curtain descends across the viewport
     if (coverEl) {
       tl.fromTo(coverEl, {
         y: '-100%',
       }, {
         y: '0%',
-        duration: 0.68,
+        duration: 0.72,
         ease: 'power3.inOut',
       }, 0.12);
 
@@ -123,14 +126,14 @@ export const LoaderTransition = {
           loaderOverlayEl.style.opacity = '0';
           loaderOverlayEl.style.pointerEvents = 'none';
         }
-      }, 0.80);
+      }, 0.82);
 
       // PHASE F: Cover curtain wipes away downward, revealing the homepage hero
       tl.to(coverEl, {
         y: '100%',
-        duration: 0.65,
+        duration: 0.68,
         ease: 'power3.inOut',
-      }, 0.84);
+      }, 0.86);
     } else {
       tl.add(() => {
         if (onHeroRevealReady) onHeroRevealReady();
@@ -140,13 +143,13 @@ export const LoaderTransition = {
     // PHASE G: Final cleanup and callback execution
     tl.add(() => {
       if (onComplete) onComplete();
-    }, 1.52);
+    }, 1.55);
 
     return tl;
   },
 
   /**
-   * Fast Skip Transition
+   * Fast Skip Transition (Keyboard Accessibility)
    */
   animateSkip({
     coverEl,
@@ -170,7 +173,7 @@ export const LoaderTransition = {
 
     const tl = gsap.timeline();
 
-    // Rapid cover descend
+    // Rapid ivory cover descend
     tl.fromTo(coverEl, {
       y: '-100%',
     }, {
