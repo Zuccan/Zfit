@@ -104,7 +104,7 @@ export function TagString({ physics, onPullTrigger }) {
 
   const stringMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: '#141416',
+      color: '#ffffffff',
       roughness: 0.92,
       metalness: 0.04,
     });
