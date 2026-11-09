@@ -7,3 +7,31 @@
   background-color: #0c0c0e;
   overflow-x: hidden;
 }
+
+/* Zero document overflow & scrollbar locking during loader */
+.zfits-root.is-loading {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+}
+
+.home-behind-shutter {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+}
+
+/* While loader is active, lock the behind-the-scenes homepage to exactly 100dvh to prevent scrollbar */
+.home-behind-shutter.locked-viewport {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  pointer-events: none;
+}

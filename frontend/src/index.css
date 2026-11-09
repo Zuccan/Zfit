@@ -2,7 +2,6 @@
   box-sizing: border-box;
 }
 
-/* Minimal baseline - strictly non-intrusive */
 :root {
   color-scheme: dark;
 }
@@ -14,6 +13,27 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Strict zero-scrollbar & zero-overflow locking during loader */
+html.zfits-loading, body.zfits-loading {
+  overflow: hidden !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html.zfits-loading::-webkit-scrollbar,
+body.zfits-loading::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 body {

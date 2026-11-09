@@ -1,34 +1,53 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ContactShadows } from '@react-three/drei';
-import { RollingShutter } from './RollingShutter';
+import * as THREE from 'three';
+import { FabricMesh } from './FabricMesh';
 import { HangingTag } from './HangingTag';
 import { TagString } from './TagString';
 import { UnifiedTagPhysics } from './UnifiedTagPhysics';
+import { BreakFibers } from './BreakFibers';
 
 /**
- * TagSceneContent (V9)
- * Houses the physical trigger + retail rolling shutter:
- * - Full-viewport-width luxury architectural rolling shutter with 38 horizontal interlocking slats
- * - Concealed top roller housing and cylindrical drum
- * - Ultra-thin black ZFITs fashion tag hanging from braided cotton cord in front of the shutter
- * - Natural 360° unconstrained rotation and Verlet rope physics
- * - Downward pull triggers the shutter mechanism to roll upward into the top housing
+ * TagSceneContent (V12)
+ * Physical Breakaway Installation + Realistic Fabric Release:
+ * - Ultra-thin black ZFITs fashion tag suspended in the optical center
+ * - Upper attachment anchor at (0, 1.85, 0)
+ * - Downward pull builds tension; excessive tension physically snaps the upper anchor
+ * - String detaches, recoils, and plummets with the tag under gravity
+ * - Spawns thread-fraying fiber particles at the snap point
+ * - Triggers immediate silk fabric release from above the scene
  */
 function TagSceneContent({
-  rollProgress = 0,
-  onTriggerShutter,
+  clothPhysics,
+  onBreakaway,
   onPullProgress,
-  onTensionChange,
+  onClothProgress,
   onSceneReady,
-  tagOpacity = 1,
 }) {
+  const tagGroupRef = useRef(null);
+  const [breakEvent, setBreakEvent] = useState(null);
+
+  // Ceiling Anchor Bracket Material
+  const bracketMaterial = useMemo(() => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#1A1A1D'),
+      roughness: 0.35,
+      metalness: 0.85,
+    });
+  }, []);
+
   const physics = useMemo(() => {
     return new UnifiedTagPhysics({
-      pullThreshold: 0.40,
-      onTriggerShutter,
+      pullThreshold: 0.18,
+      onBreakaway: (event) => {
+        setBreakEvent(event);
+        clothPhysics.release();
+        if (onBreakaway) {
+          onBreakaway(event);
+        }
+      },
     });
-  }, [onTriggerShutter]);
+  }, [clothPhysics, onBreakaway]);
 
   useEffect(() => {
     if (onSceneReady) {
@@ -36,27 +55,28 @@ function TagSceneContent({
     }
   }, [onSceneReady]);
 
-  // Pass upward retraction to physics if shutter is opening
-  useEffect(() => {
-    if (rollProgress > 0) {
-      // Retract tag slightly upwards alongside the lifting shutter
-      physics.setRetractProgress(rollProgress * 0.45);
-    }
-  }, [rollProgress, physics]);
-
   // Advance simulation on each animation frame
   useFrame((state, delta) => {
-    const result = physics.step(delta, state.clock.getElapsedTime());
-    if (onTensionChange) {
-      onTensionChange(result.isTensionHigh);
+    const time = state.clock.getElapsedTime();
+
+    // 1. Step cloth simulation
+    const clothResult = clothPhysics.step(delta, time);
+    if (onClothProgress) {
+      onClothProgress(clothResult);
     }
+
+    // 2. Step fashion tag physics
+    const tagResult = physics.step(delta, time);
+
     if (onPullProgress) {
       onPullProgress({
-        pullPixels: result.pullPixels,
-        screenDx: result.screenDx,
-        pullProgress: result.pullProgress,
-        isTriggerReady: result.isTriggerReady,
-        isDraggingCard: physics.dragTarget === 'CARD',
+        pullPixels: tagResult.pullPixels,
+        currentPullY: tagResult.currentPullY,
+        maxPullY: tagResult.maxPullY,
+        pullProgress: tagResult.pullProgress,
+        isTriggerReady: tagResult.isTriggerReady,
+        isDetached: tagResult.isDetached,
+        state: tagResult.state,
       });
     }
   });
@@ -64,75 +84,73 @@ function TagSceneContent({
   return (
     <>
       {/* Balanced Softbox Studio Lighting */}
-      <ambientLight intensity={0.78} color="#ffffff" />
+      <ambientLight intensity={0.92} color="#FFFFFF" />
 
-      {/* Primary Key Directional Light: Casts crisp realistic directional shadows onto shutter slats */}
+      {/* Primary Key Directional Light */}
       <directionalLight
-        position={[2.4, 4.2, 3.2]}
-        intensity={1.9}
+        position={[2.5, 4.5, 3.5]}
+        intensity={1.85}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
         shadow-camera-far={12}
-        shadow-camera-left={-5}
-        shadow-camera-right={5}
-        shadow-camera-top={3.5}
-        shadow-camera-bottom={-3.5}
+        shadow-camera-left={-6}
+        shadow-camera-right={6}
+        shadow-camera-top={4}
+        shadow-camera-bottom={-4}
         shadow-bias={-0.00015}
       />
 
-      {/* Edge & Rim Light: Grazes beveled paper edges and cotton cord */}
+      {/* Edge & Rim Light */}
       <directionalLight
-        position={[-3.2, 2.4, -1.8]}
-        intensity={1.25}
-        color="#edf2ff"
+        position={[-3.2, 2.6, -2.0]}
+        intensity={1.15}
+        color="#F0F4FF"
       />
 
       {/* Gentle Upward Warm Fill Bounce */}
       <directionalLight
         position={[-1.0, -1.8, 1.8]}
-        intensity={0.35}
-        color="#fff8f2"
+        intensity={0.32}
+        color="#FFF8F2"
       />
 
-      {/* 1. Industrial Architectural Rolling Shutter */}
-      <RollingShutter rollProgress={rollProgress} />
+      {/* 1. Suspended Luxury Silk Fabric (Poised above viewport) */}
+      <FabricMesh clothPhysics={clothPhysics} />
 
-      {/* 2. Interactive Hanging Fashion Tag Installation */}
-      <group position={[0, 0, 0]} visible={tagOpacity > 0.01}>
-        {/* Dynamic Braided Cotton Rope */}
-        <TagString physics={physics} onPullTrigger={() => physics.triggerShutter()} />
-
-        {/* Ultra-Thin Fashion Tag */}
-        <HangingTag physics={physics} onPullTrigger={() => physics.triggerShutter()} />
+      {/* 2. Top Ceiling Attachment Hardware (The exact suspension anchor) */}
+      <group position={[0, 1.85, 0]}>
+        <mesh castShadow material={bracketMaterial}>
+          <boxGeometry args={[0.16, 0.035, 0.12]} />
+        </mesh>
+        <mesh position={[0, -0.022, 0]} castShadow material={bracketMaterial}>
+          <cylinderGeometry args={[0.018, 0.018, 0.025, 16]} />
+        </mesh>
       </group>
 
-      {/* Floor contact shadow beneath the installation */}
-      <ContactShadows
-        position={[0, -1.35, 0]}
-        opacity={0.20}
-        scale={4.0}
-        blur={2.4}
-        far={2.2}
-        resolution={512}
-        color="#000000"
-      />
+      {/* 3. Thread-fraying fiber particles spawned at the exact upper connection upon break */}
+      <BreakFibers breakEvent={breakEvent} />
+
+      {/* 4. Interactive Hanging Fashion Tag Installation */}
+      <group ref={tagGroupRef} position={[0, 0, 0]}>
+        <TagString physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+        <HangingTag physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+      </group>
     </>
   );
 }
 
 /**
  * TagScene
- * R3F Canvas container calibrated for studio cinematography and rolling shutter reveal.
+ * R3F Canvas container calibrated for studio cinematography and physical breakaway.
  */
 export function TagScene({
-  rollProgress = 0,
-  onTriggerShutter,
+  clothPhysics,
+  onBreakaway,
   onPullProgress,
-  onTensionChange,
+  onClothProgress,
   onSceneReady,
-  tagOpacity = 1,
 }) {
   return (
     <Canvas
@@ -151,12 +169,11 @@ export function TagScene({
       }}
     >
       <TagSceneContent
-        rollProgress={rollProgress}
-        onTriggerShutter={onTriggerShutter}
+        clothPhysics={clothPhysics}
+        onBreakaway={onBreakaway}
         onPullProgress={onPullProgress}
-        onTensionChange={onTensionChange}
+        onClothProgress={onClothProgress}
         onSceneReady={onSceneReady}
-        tagOpacity={tagOpacity}
       />
     </Canvas>
   );

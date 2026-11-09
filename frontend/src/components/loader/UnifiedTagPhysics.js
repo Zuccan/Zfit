@@ -3,44 +3,48 @@ import * as THREE from 'three';
 const CLAMP = (val, min, max) => Math.min(Math.max(val, min), max);
 
 export const INTERACTION_STATES = {
-  INITIALIZING: 'INITIALIZING',
   IDLE: 'IDLE',
-  CARD_GRABBED: 'CARD_GRABBED',
-  STRING_GRABBED: 'STRING_GRABBED',
   DRAGGING: 'DRAGGING',
-  FREE_SWING: 'FREE_SWING',
-  FREE_SPIN: 'FREE_SPIN',
-  SETTLING: 'SETTLING',
-  TRIGGERED: 'TRIGGERED',
-  COMPLETED: 'COMPLETED',
+  TENSIONED: 'TENSIONED',
+  DETACHED: 'DETACHED',
+  FABRIC_RELEASED: 'FABRIC_RELEASED',
+  HERO_REVEALED: 'HERO_REVEALED',
 };
 
 /**
- * UnifiedTagPhysics (V9)
- * Suspension Rope & Fashion Tag Physics with Deliberate Pull Trigger:
- * - Fixed ceiling/housing bracket at (0, 1.66, -0.05)
- * - 12-particle dynamic Verlet rope with distance relaxation constraints
- * - Ultra-thin rectangular fashion tag with 360° unconstrained rotation
- * - Downward pull detection: measures displacement, angle, duration & velocity
- * - Deliberate downward pull triggers the industrial rolling shutter opening sequence
+ * UnifiedTagPhysics (V12)
+ * Physical Breakaway Suspension & Freely Falling Tag Simulation:
+ * - Upper attachment anchor at (0, 1.85, 0)
+ * - 12-particle Verlet rope connecting anchor to fashion tag
+ * - Tension threshold = 0.18 (~50px downward travel)
+ * - Upon excessive tension:
+ *   1. Upper connection snaps completely
+ *   2. Node 0 unpins and recoils downward
+ *   3. Entire rope + tag assembly plummets under gravity (g = -12.5 m/s²)
+ *   4. Angular momentum and downward momentum are fully preserved
+ *   5. Triggers thread fibers and immediate fabric drop
  */
 export class UnifiedTagPhysics {
   constructor(options = {}) {
-    this.pullThreshold = options.pullThreshold || 0.40;
-    this.onTriggerShutter = options.onTriggerShutter || null;
-    this.state = INTERACTION_STATES.INITIALIZING;
+    this.pullThreshold = options.pullThreshold || 0.18;
+    this.onBreakaway = options.onBreakaway || null;
+    this.state = INTERACTION_STATES.IDLE;
 
-    // --- 1. TOP ROLLER HOUSING ANCHOR BRACKET ---
-    this.initialAnchorY = 1.66;
-    this.anchorPos = new THREE.Vector3(0, this.initialAnchorY, -0.05);
+    // --- 1. TOP SUSPENSION ANCHOR ---
+    this.initialAnchorY = 1.85;
+    this.anchorPos = new THREE.Vector3(0, this.initialAnchorY, 0);
 
-    // --- 2. SUSPENSION ROPE PARTICLES (12 nodes) ---
+    // Breakaway state
+    this.isDetached = false;
+    this.hasTriggered = false;
+
+    // --- 2. VERLET SUSPENSION ROPE (12 nodes) ---
     this.numNodes = 12;
-    this.totalRopeLength = 1.05; // Distance from bracket to tag hole
+    this.totalRopeLength = 1.15; // Distance from ceiling to tag hole
     this.segmentLength = this.totalRopeLength / (this.numNodes - 1);
     this.ropeDamping = 0.965;
     this.iterations = 12;
-    this.gravity = -9.8;
+    this.gravity = -12.5;
 
     this.nodes = [];
     for (let i = 0; i < this.numNodes; i++) {
@@ -49,17 +53,17 @@ export class UnifiedTagPhysics {
       this.nodes.push({
         x: 0,
         y,
-        z: -0.05,
+        z: 0,
         oldX: 0,
         oldY: y,
-        oldZ: -0.05,
+        oldZ: 0,
         mass: i === this.numNodes - 1 ? 0.14 : 0.05,
       });
     }
 
     this.splinePoints = this.nodes.map(n => new THREE.Vector3(n.x, n.y, n.z));
 
-    // --- 3. FASHION TAG ANGULAR STATE (360° rotational freedom) ---
+    // --- 3. FASHION TAG ROTATION STATE ---
     this.rotation = {
       x: 0.04,  // Pitch
       y: 0.22,  // Yaw (full 360° unconstrained rotation)
@@ -74,23 +78,23 @@ export class UnifiedTagPhysics {
 
     this.inertia = {
       x: 0.36,
-      y: 0.055, // Low Iy for agile, graceful 360° spinning
+      y: 0.055, // Low Iy for agile 360° spinning
       z: 0.36,
     };
 
     this.stiffness = {
-      x: 20.0,
-      y: 0.55,
-      z: 22.0,
+      x: 18.0,
+      y: 0.50,
+      z: 20.0,
     };
 
     this.damping = {
-      x: 2.2,
-      y: 0.20,
-      z: 2.2,
+      x: 2.0,
+      y: 0.18,
+      z: 2.0,
     };
 
-    // --- 4. INTERACTION & PULL TRIGGER STATE ---
+    // --- 4. DRAG & TENSION STATE ---
     this.dragTarget = null;
     this.grabbedStringNode = -1;
     this.stringGrabPos = new THREE.Vector3();
@@ -108,29 +112,41 @@ export class UnifiedTagPhysics {
     this.maxPullY = 0;
     this.isTriggerReady = false;
     this.isLocked = false;
-    this.hasTriggered = false;
-
-    // Upward retraction offset when shutter is rolling
-    this.retractProgress = 0;
   }
 
   /**
-   * Activates the retail rolling shutter mechanism upon intentional downward pull
+   * Break the upper suspension anchor connection
    */
-  triggerShutter() {
-    if (this.hasTriggered) return;
+  triggerBreakaway() {
+    if (this.isDetached) return;
 
+    this.isDetached = true;
     this.hasTriggered = true;
     this.dragTarget = null;
     this.isLocked = true;
-    this.state = INTERACTION_STATES.TRIGGERED;
+    this.state = INTERACTION_STATES.DETACHED;
 
-    // Slight natural release bounce on the tag
-    this.velocity.y += (Math.random() - 0.5) * 3.5;
-    this.velocity.z += (Math.random() - 0.5) * 2.0;
+    // 1. Recoil impulse at the break point: top nodes whip downwards
+    this.nodes[0].oldY = this.nodes[0].y + 0.06; // Downward initial velocity
+    this.nodes[0].oldX = this.nodes[0].x + (Math.random() - 0.5) * 0.04;
+    this.nodes[1].oldY = this.nodes[1].y + 0.04;
 
-    if (this.onTriggerShutter) {
-      this.onTriggerShutter();
+    // 2. Tag preserves downward momentum from the pull
+    const bottomNode = this.nodes[this.numNodes - 1];
+    const downwardImpulse = Math.min(-0.04, -this.pointerVelocity.y * 0.0035 - 0.03);
+    bottomNode.oldY = bottomNode.y - downwardImpulse;
+
+    // 3. Impart tumbling angular momentum
+    this.velocity.y += (Math.random() - 0.5) * 4.5;
+    this.velocity.z += (Math.random() - 0.5) * 2.5;
+    this.velocity.x += (Math.random() - 0.5) * 1.5;
+
+    // 4. Notify scene of breakaway
+    if (this.onBreakaway) {
+      this.onBreakaway({
+        anchorPos: { x: this.anchorPos.x, y: this.anchorPos.y, z: this.anchorPos.z },
+        velocity: this.velocity,
+      });
     }
   }
 
@@ -138,10 +154,10 @@ export class UnifiedTagPhysics {
    * Pointer grabbed card
    */
   startCardDrag(clientX, clientY, localHitPoint = null) {
-    if (this.isLocked) return;
+    if (this.isLocked || this.isDetached) return;
 
     this.dragTarget = 'CARD';
-    this.state = INTERACTION_STATES.CARD_GRABBED;
+    this.state = INTERACTION_STATES.DRAGGING;
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
     this.startClientX = clientX;
@@ -172,12 +188,15 @@ export class UnifiedTagPhysics {
    * Pointer grabbed string
    */
   startStringDrag(hitPoint, clientX, clientY) {
-    if (this.isLocked) return;
+    if (this.isLocked || this.isDetached) return;
 
     this.dragTarget = 'STRING';
-    this.state = INTERACTION_STATES.STRING_GRABBED;
+    this.state = INTERACTION_STATES.DRAGGING;
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
+    this.startClientX = clientX;
+    this.startClientY = clientY;
+    this.dragStartTime = performance.now();
     this.pointerVelocity.x = 0;
     this.pointerVelocity.y = 0;
 
@@ -204,11 +223,10 @@ export class UnifiedTagPhysics {
   }
 
   /**
-   * Update active drag
+   * Update active drag and track tension
    */
   updateDrag(clientX, clientY, deltaWorldX, deltaWorldY) {
-    if (this.isLocked || !this.dragTarget) return;
-    this.state = INTERACTION_STATES.DRAGGING;
+    if (this.isLocked || this.isDetached || !this.dragTarget) return;
 
     const pvx = clientX - this.lastPointerPos.x;
     const pvy = clientY - this.lastPointerPos.y;
@@ -217,32 +235,41 @@ export class UnifiedTagPhysics {
     this.lastPointerPos.x = clientX;
     this.lastPointerPos.y = clientY;
 
+    const screenDx = clientX - this.startClientX;
+    const screenDy = clientY - this.startClientY;
+    this.screenDx = screenDx;
+
     if (this.dragTarget === 'CARD') {
       const bottomNode = this.nodes[this.numNodes - 1];
       bottomNode.x = this.cardDragOffset.x + deltaWorldX;
       bottomNode.y = this.cardDragOffset.y + deltaWorldY;
       bottomNode.z = this.cardDragOffset.z - deltaWorldY * 0.15;
 
-      const screenDx = clientX - this.startClientX;
-      const screenDy = clientY - this.startClientY;
-      this.screenDx = screenDx;
-
-      // Downward pull detection: deliberate pull downward
-      if (screenDy > 10 && screenDy > Math.abs(screenDx) * 0.70) {
+      // Downward pull & tension measurement
+      if (screenDy > 10) {
         this.pullPixels = screenDy;
-        this.currentPullY = Math.max(0, -deltaWorldY);
+        const worldPull = Math.max(0, -deltaWorldY);
+        const pixelPull = Math.max(0, screenDy * 0.0035);
+        this.currentPullY = Math.max(worldPull, pixelPull);
         this.maxPullY = Math.max(this.maxPullY, this.currentPullY);
 
-        const pullDuration = performance.now() - this.dragStartTime;
-        // Activation threshold reached!
-        if (this.currentPullY >= this.pullThreshold && pullDuration >= 80) {
+        const tensionRatio = this.currentPullY / this.pullThreshold;
+        if (tensionRatio >= 0.70) {
+          this.state = INTERACTION_STATES.TENSIONED;
+        } else {
+          this.state = INTERACTION_STATES.DRAGGING;
+        }
+
+        // Breakaway threshold reached!
+        if (this.currentPullY >= this.pullThreshold) {
           this.isTriggerReady = true;
-          this.triggerShutter();
+          this.triggerBreakaway();
           return;
         }
       } else {
         this.pullPixels = 0;
         this.currentPullY = 0;
+        this.state = INTERACTION_STATES.DRAGGING;
       }
 
       // Torques τ = r × F
@@ -266,6 +293,22 @@ export class UnifiedTagPhysics {
       node.x = this.stringGrabPos.x + deltaWorldX;
       node.y = this.stringGrabPos.y + deltaWorldY;
       node.z = this.stringGrabPos.z;
+
+      if (screenDy > 15) {
+        this.pullPixels = screenDy;
+        this.currentPullY = Math.max(0, screenDy * 0.0035);
+        this.maxPullY = Math.max(this.maxPullY, this.currentPullY);
+
+        if (this.currentPullY / this.pullThreshold >= 0.70) {
+          this.state = INTERACTION_STATES.TENSIONED;
+        }
+
+        if (this.currentPullY >= this.pullThreshold) {
+          this.isTriggerReady = true;
+          this.triggerBreakaway();
+          return;
+        }
+      }
     }
   }
 
@@ -273,21 +316,19 @@ export class UnifiedTagPhysics {
    * Pointer released
    */
   release() {
-    if (this.isLocked || !this.dragTarget) return false;
+    if (this.isLocked || this.isDetached || !this.dragTarget) return false;
 
     const wasCard = this.dragTarget === 'CARD';
-    const wasDeliberatePull = wasCard && (this.isTriggerReady || this.maxPullY >= this.pullThreshold);
+    const wasDeliberatePull = this.isTriggerReady || this.maxPullY >= this.pullThreshold;
 
     this.dragTarget = null;
     this.grabbedStringNode = -1;
     this.pullPixels = 0;
     this.screenDx = 0;
     this.currentPullY = 0;
-    this.maxPullY = 0;
-    this.isTriggerReady = false;
 
     if (wasDeliberatePull) {
-      this.triggerShutter();
+      this.triggerBreakaway();
       return true;
     }
 
@@ -305,23 +346,12 @@ export class UnifiedTagPhysics {
       this.velocity.y += CLAMP((rx * -vy * 58.0) + (vx * 26.0), -32, 32);
       this.velocity.x += CLAMP(vy * 26.0, -12, 12);
 
-      if (Math.abs(this.velocity.y) > 2.0) {
-        this.state = INTERACTION_STATES.FREE_SPIN;
-      } else {
-        this.state = INTERACTION_STATES.FREE_SWING;
-      }
+      this.state = Math.abs(this.velocity.y) > 2.0 ? 'FREE_SPIN' : 'FREE_SWING';
     } else {
-      this.state = INTERACTION_STATES.FREE_SWING;
+      this.state = 'FREE_SWING';
     }
 
     return false;
-  }
-
-  /**
-   * Set tag upward retraction progress (0 to 1) when shutter rolls up
-   */
-  setRetractProgress(p) {
-    this.retractProgress = CLAMP(p, 0, 1);
   }
 
   /**
@@ -331,90 +361,123 @@ export class UnifiedTagPhysics {
     const dt = Math.min(0.025, Math.max(0.004, deltaTime));
     const dtSq = dt * dt;
 
-    // Anchor position with subtle strain when card is being pulled down
-    let anchorY = this.initialAnchorY;
-    if (this.dragTarget === 'CARD' && this.currentPullY > 0) {
-      anchorY -= Math.min(0.035, this.currentPullY * 0.06);
-    }
-    // Upward retraction when shutter opens
-    if (this.retractProgress > 0) {
-      anchorY += this.retractProgress * 1.2;
-    }
-    this.anchorPos.y = anchorY;
+    if (!this.isDetached) {
+      // --- A. INTACT STATE: NODE 0 IS PINNED TO ANCHOR BRACKET ---
+      let anchorY = this.initialAnchorY;
+      if (this.dragTarget === 'CARD' && this.currentPullY > 0) {
+        // Microscopic physical strain at anchor bracket before break (max 2mm)
+        anchorY -= Math.min(0.025, this.currentPullY * 0.05);
+      }
+      this.anchorPos.y = anchorY;
 
-    // Pin Node 0 of the cotton rope directly to the housing bracket
-    this.nodes[0].x = this.anchorPos.x;
-    this.nodes[0].y = this.anchorPos.y;
-    this.nodes[0].z = this.anchorPos.z;
-
-    // Step Verlet rope nodes
-    for (let i = 1; i < this.numNodes; i++) {
-      if (this.dragTarget === 'STRING' && i === this.grabbedStringNode) continue;
-      if (this.dragTarget === 'CARD' && i === this.numNodes - 1) continue;
-
-      const node = this.nodes[i];
-      const vx = (node.x - node.oldX) * this.ropeDamping;
-      const vy = (node.y - node.oldY) * this.ropeDamping;
-      const vz = (node.z - node.oldZ) * this.ropeDamping;
-
-      node.oldX = node.x;
-      node.oldY = node.y;
-      node.oldZ = node.z;
-
-      node.x += vx;
-      node.y += vy + this.gravity * dtSq;
-      node.z += vz;
-    }
-
-    // Solve distance constraints (Relaxation iterations)
-    for (let iter = 0; iter < this.iterations; iter++) {
       this.nodes[0].x = this.anchorPos.x;
       this.nodes[0].y = this.anchorPos.y;
       this.nodes[0].z = this.anchorPos.z;
 
-      for (let i = 0; i < this.numNodes - 1; i++) {
-        const p1 = this.nodes[i];
-        const p2 = this.nodes[i + 1];
+      // Step nodes 1 to numNodes - 1
+      for (let i = 1; i < this.numNodes; i++) {
+        if (this.dragTarget === 'STRING' && i === this.grabbedStringNode) continue;
+        if (this.dragTarget === 'CARD' && i === this.numNodes - 1) continue;
 
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const dz = p2.z - p1.z;
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.0001;
-        const diff = (dist - this.segmentLength) / dist;
+        const node = this.nodes[i];
+        const vx = (node.x - node.oldX) * this.ropeDamping;
+        const vy = (node.y - node.oldY) * this.ropeDamping;
+        const vz = (node.z - node.oldZ) * this.ropeDamping;
 
-        const isP1Fixed = i === 0 || (this.dragTarget === 'STRING' && i === this.grabbedStringNode);
-        const isP2Fixed =
-          (this.dragTarget === 'STRING' && i + 1 === this.grabbedStringNode) ||
-          (this.dragTarget === 'CARD' && i + 1 === this.numNodes - 1);
+        node.oldX = node.x;
+        node.oldY = node.y;
+        node.oldZ = node.z;
 
-        if (isP1Fixed && isP2Fixed) {
-          // both fixed
-        } else if (isP1Fixed) {
-          p2.x -= dx * diff;
-          p2.y -= dy * diff;
-          p2.z -= dz * diff;
-        } else if (isP2Fixed) {
-          p1.x += dx * diff;
-          p1.y += dy * diff;
-          p1.z += dz * diff;
-        } else {
-          const m1 = p1.mass;
-          const m2 = p2.mass;
-          const totalM = m1 + m2;
-          const f1 = m2 / totalM;
-          const f2 = m1 / totalM;
+        node.x += vx;
+        node.y += vy + this.gravity * dtSq;
+        node.z += vz;
+      }
 
-          p1.x += dx * diff * f1;
-          p1.y += dy * diff * f1;
-          p1.z += dz * diff * f1;
-          p2.x -= dx * diff * f2;
-          p2.y -= dy * diff * f2;
-          p2.z -= dz * diff * f2;
+      // Solve distance constraints with Node 0 pinned
+      for (let iter = 0; iter < this.iterations; iter++) {
+        this.nodes[0].x = this.anchorPos.x;
+        this.nodes[0].y = this.anchorPos.y;
+        this.nodes[0].z = this.anchorPos.z;
+
+        for (let i = 0; i < this.numNodes - 1; i++) {
+          const p1 = this.nodes[i];
+          const p2 = this.nodes[i + 1];
+
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const dz = p2.z - p1.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.0001;
+          const diff = (dist - this.segmentLength) / dist;
+
+          const isP1Fixed = i === 0 || (this.dragTarget === 'STRING' && i === this.grabbedStringNode);
+          const isP2Fixed =
+            (this.dragTarget === 'STRING' && i + 1 === this.grabbedStringNode) ||
+            (this.dragTarget === 'CARD' && i + 1 === this.numNodes - 1);
+
+          if (isP1Fixed && isP2Fixed) {
+            // both fixed
+          } else if (isP1Fixed) {
+            p2.x -= dx * diff;
+            p2.y -= dy * diff;
+            p2.z -= dz * diff;
+          } else if (isP2Fixed) {
+            p1.x += dx * diff;
+            p1.y += dy * diff;
+            p1.z += dz * diff;
+          } else {
+            const half = diff * 0.5;
+            p1.x += dx * half;
+            p1.y += dy * half;
+            p1.z += dz * half;
+            p2.x -= dx * half;
+            p2.y -= dy * half;
+            p2.z -= dz * half;
+          }
+        }
+      }
+
+    } else {
+      // --- B. DETACHED BREAKAWAY STATE: ALL NODES (0 TO 11) FALL FREELY UNDER GRAVITY ---
+      for (let i = 0; i < this.numNodes; i++) {
+        const node = this.nodes[i];
+        const vx = (node.x - node.oldX) * this.ropeDamping;
+        const vy = (node.y - node.oldY) * this.ropeDamping;
+        const vz = (node.z - node.oldZ) * this.ropeDamping;
+
+        node.oldX = node.x;
+        node.oldY = node.y;
+        node.oldZ = node.z;
+
+        node.x += vx;
+        node.y += vy + this.gravity * dtSq;
+        node.z += vz;
+      }
+
+      // Solve distance constraints with ALL nodes free to move and whip
+      for (let iter = 0; iter < this.iterations; iter++) {
+        for (let i = 0; i < this.numNodes - 1; i++) {
+          const p1 = this.nodes[i];
+          const p2 = this.nodes[i + 1];
+
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const dz = p2.z - p1.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.0001;
+          const diff = (dist - this.segmentLength) / dist;
+
+          const half = diff * 0.5;
+          p1.x += dx * half;
+          p1.y += dy * half;
+          p1.z += dz * half;
+
+          p2.x -= dx * half;
+          p2.y -= dy * half;
+          p2.z -= dz * half;
         }
       }
     }
 
-    // Update Catmull-Rom spline points for rope mesh
+    // Update Catmull-Rom spline points for rope tube mesh
     for (let i = 0; i < this.numNodes; i++) {
       this.splinePoints[i].set(this.nodes[i].x, this.nodes[i].y, this.nodes[i].z);
     }
@@ -422,7 +485,7 @@ export class UnifiedTagPhysics {
     // Step tag angular orientation
     let idleTorqueY = 0;
     let idleTorqueZ = 0;
-    if (!this.dragTarget) {
+    if (!this.dragTarget && !this.isDetached) {
       idleTorqueY = Math.sin(totalTime * 0.73) * 0.05 + Math.cos(totalTime * 1.37) * 0.025;
       idleTorqueZ = Math.sin(totalTime * 0.91) * 0.07 + Math.cos(totalTime * 1.63) * 0.025;
     }
@@ -443,8 +506,10 @@ export class UnifiedTagPhysics {
     this.rotation.y += this.velocity.y * dt; // Full 360° unconstrained rotation
     this.rotation.z += this.velocity.z * dt;
 
-    this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
-    this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
+    if (!this.isDetached) {
+      this.rotation.x = CLAMP(this.rotation.x, -1.2, 1.2);
+      this.rotation.z = CLAMP(this.rotation.z, -1.3, 1.3);
+    }
 
     const bottomNode = this.nodes[this.numNodes - 1];
     const cardPosition = {
@@ -454,7 +519,7 @@ export class UnifiedTagPhysics {
     };
 
     const pullProgress = CLAMP(this.currentPullY / this.pullThreshold, 0, 1);
-    const isTensionHigh = pullProgress >= 0.75;
+    const isTensionHigh = pullProgress >= 0.70;
 
     return {
       anchorPos: this.anchorPos,
@@ -463,9 +528,12 @@ export class UnifiedTagPhysics {
       splinePoints: this.splinePoints,
       pullPixels: this.pullPixels,
       screenDx: this.screenDx,
+      currentPullY: this.currentPullY,
+      maxPullY: this.maxPullY,
       pullProgress,
       isTensionHigh,
       isTriggerReady: this.isTriggerReady,
+      isDetached: this.isDetached,
       state: this.state,
     };
   }

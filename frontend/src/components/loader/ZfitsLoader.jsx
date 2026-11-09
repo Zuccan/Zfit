@@ -1,47 +1,64 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback } from 'react';
 import { TagScene } from './TagScene';
+import { ClothPhysics } from './ClothPhysics';
 import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V9)
- * Industrial Retail Rolling Shutter + Interactive Tag Trigger:
- * - Hanging black ZFITs fashion tag suspended in front of closed architectural rolling shutter
- * - 38 horizontal interlocking slats spanning the full viewport
- * - Downward intentional pull on the tag activates the shutter mechanism
- * - Shutter slats roll UPWARD and wrap into top concealed roller drum
- * - Homepage hero is progressively revealed behind the rising shutter from bottom to top
- * - Clean editorial design: zero instructions, zero skip buttons, zero scrollbars
+ * ZfitsLoader (V12)
+ * Physical Breakaway Fashion Tag + Realistic Fabric Release:
+ * - Minimal, clean warm white studio environment (#F8F7F4)
+ * - Suspended black ZFITs fashion tag attached to breakable upper anchor
+ * - Downward pull builds tension; strong pull physically breaks upper connection
+ * - Tag plummets under gravity with loose string and frayed fiber particles
+ * - Breakaway immediately triggers suspended silk fabric drop
+ * - Fabric cascades downward with authentic folds, unveiling the luxury homepage
+ * - Authoritative State Machine:
+ *   IDLE → DRAGGING → TENSIONED → DETACHED → FABRIC_RELEASED → HERO_REVEALED
  */
 export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
-  const overlayRef = useRef(null);
+  const rootRef = useRef(null);
+
+  // Track transition state
   const isTransitioningRef = useRef(false);
+  const heroRevealedRef = useRef(false);
 
-  const [rollProgress, setRollProgress] = useState(0);
-  const [clipProgress, setClipProgress] = useState(0);
-  const [tagOpacity, setTagOpacity] = useState(1);
-
-  // Disable page scrolling during the interactive loader
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
+  // Particle-based Verlet cloth physics instance created once
+  const clothPhysics = useMemo(() => {
+    return new ClothPhysics({
+      gravity: -14.0,
+      damping: 0.982,
+      iterations: 4,
+    });
   }, []);
 
-  // Triggered when user pulls tag downward past activation threshold
-  const handleTriggerShutter = useCallback(() => {
-    if (isTransitioningRef.current) return;
-    isTransitioningRef.current = true;
+  // Frame-by-frame cloth progress handler
+  const handleClothProgress = useCallback((result) => {
+    if (result.isReleased) {
+      const topPct = Math.max(0, Math.min(100, (1 - result.topEdgeNormalized) * 100));
 
-    LoaderTransition.orchestrateShutterOpening({
-      onUpdateRollProgress: (p) => setRollProgress(p),
-      onUpdateClipProgress: (p) => setClipProgress(p),
-      onUpdateTagOpacity: (o) => setTagOpacity(o),
-      onHeroRevealReady,
-      onComplete,
-    });
+      // Dynamically clip loader root in sync with the falling top edge of the silk
+      if (rootRef.current) {
+        rootRef.current.style.clipPath = `polygon(0 ${topPct.toFixed(2)}%, 100% ${topPct.toFixed(2)}%, 100% 100%, 0 100%)`;
+        rootRef.current.style.webkitClipPath = `polygon(0 ${topPct.toFixed(2)}%, 100% ${topPct.toFixed(2)}%, 100% 100%, 0 100%)`;
+      }
+
+      // Trigger hero entrance as fabric falls past the upper third of the viewport
+      if (topPct > 35 && !heroRevealedRef.current) {
+        heroRevealedRef.current = true;
+        if (onHeroRevealReady) onHeroRevealReady();
+      }
+
+      // Check if fabric has completely dropped out of the viewport
+      if (result.isFullyExited && !isTransitioningRef.current) {
+        isTransitioningRef.current = true;
+        if (!heroRevealedRef.current) {
+          heroRevealedRef.current = true;
+          if (onHeroRevealReady) onHeroRevealReady();
+        }
+        if (onComplete) onComplete();
+      }
+    }
   }, [onHeroRevealReady, onComplete]);
 
   // Keyboard Escape accessibility fallback
@@ -50,8 +67,6 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     isTransitioningRef.current = true;
 
     LoaderTransition.animateSkip({
-      onUpdateRollProgress: (p) => setRollProgress(p),
-      onUpdateClipProgress: (p) => setClipProgress(p),
       onHeroRevealReady,
       onComplete,
     });
@@ -67,41 +82,20 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyboardSkip]);
 
-  // Bottom edge percentage for clipping (100% when closed, 0% when fully open)
-  const bottomEdgePercent = Math.max(0, Math.min(100, (1 - clipProgress) * 100));
-
-  const clipStyle = clipProgress > 0
-    ? {
-        clipPath: `polygon(0 0, 100% 0, 100% ${bottomEdgePercent.toFixed(2)}%, 0 ${bottomEdgePercent.toFixed(2)}%)`,
-        WebkitClipPath: `polygon(0 0, 100% 0, 100% ${bottomEdgePercent.toFixed(2)}%, 0 ${bottomEdgePercent.toFixed(2)}%)`,
-      }
-    : undefined;
-
   return (
     <div
-      ref={overlayRef}
+      ref={rootRef}
       className="zfits-3d-loader-root"
-      style={clipStyle}
       role="dialog"
-      aria-label="ZFITs Boutique Entrance"
+      aria-label="ZFITs Fashion Studio Entry"
     >
       {/* Interactive 3D WebGL Canvas Layer */}
       <div className="zfits-3d-canvas-wrap">
         <TagScene
-          rollProgress={rollProgress}
-          onTriggerShutter={handleTriggerShutter}
-          tagOpacity={tagOpacity}
+          clothPhysics={clothPhysics}
+          onClothProgress={handleClothProgress}
         />
       </div>
-
-      {/* Shutter bottom edge drop shadow cast onto homepage during upward roll */}
-      {clipProgress > 0 && clipProgress < 0.99 && (
-        <div
-          className="zfits-shutter-bottom-shadow"
-          style={{ top: `${bottomEdgePercent}%` }}
-          aria-hidden="true"
-        />
-      )}
     </div>
   );
 }

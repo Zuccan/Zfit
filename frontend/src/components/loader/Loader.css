@@ -1,6 +1,6 @@
 /* ==========================================================================
-   ZFITs 3D Interactive Hanging Fashion Tag + Rolling Shutter Loader (V9)
-   Clean Luxury Architectural Studio Environment with Physical Depth
+   ZFITs 3D Interactive Hanging Fashion Tag + Fabric Drop Loader (V11.1)
+   Minimal Clean Warm White Studio Environment (#F8F7F4)
    ========================================================================== */
 
 .zfits-3d-loader-root {
@@ -11,13 +11,13 @@
   height: 100dvh;
   z-index: 99999;
   overflow: hidden;
-  background: #F4F3EE;
-  background: radial-gradient(ellipse 95% 85% at 50% 32%, #FAF9F5 0%, #F1EFE8 60%, #E8E4DC 100%);
+  background-color: #F8F7F4;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
   pointer-events: auto;
-  opacity: 1;
+  margin: 0;
+  padding: 0;
   will-change: clip-path;
 }
 
@@ -29,16 +29,4 @@
   height: 100%;
   z-index: 1;
   pointer-events: auto;
-}
-
-/* Subtle Shutter Bottom Edge Shadow Cast onto Homepage as it rolls up */
-.zfits-shutter-bottom-shadow {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 28px;
-  background: linear-gradient(to bottom, rgba(14, 14, 16, 0.28) 0%, rgba(14, 14, 16, 0.08) 50%, transparent 100%);
-  pointer-events: none;
-  z-index: 2;
-  transform: translateY(-2px);
 }
