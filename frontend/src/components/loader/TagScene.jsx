@@ -1,38 +1,48 @@
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
-import { HeaderPanel } from './HeaderPanel';
+import { RollingShutter } from './RollingShutter';
 import { HangingTag } from './HangingTag';
 import { TagString } from './TagString';
 import { UnifiedTagPhysics } from './UnifiedTagPhysics';
 
 /**
- * TagSceneContent (V8)
- * Houses the physically connected installation:
- * - 3D Full-Width Ivory Header Panel at the top
- * - Black braided cotton rope originating from the underside bracket
- * - Ultra-thin black ZFITs fashion tag hanging from the rope
- * - Real directional shadow casting from all physical bodies onto backdrop
+ * TagSceneContent (V9)
+ * Houses the physical trigger + retail rolling shutter:
+ * - Full-viewport-width luxury architectural rolling shutter with 38 horizontal interlocking slats
+ * - Concealed top roller housing and cylindrical drum
+ * - Ultra-thin black ZFITs fashion tag hanging from braided cotton cord in front of the shutter
+ * - Natural 360° unconstrained rotation and Verlet rope physics
+ * - Downward pull triggers the shutter mechanism to roll upward into the top housing
  */
 function TagSceneContent({
-  onAssemblyExit,
+  rollProgress = 0,
+  onTriggerShutter,
   onPullProgress,
   onTensionChange,
   onSceneReady,
+  tagOpacity = 1,
 }) {
-  // Single unified physics engine coordinating header rigid-body, rope particles, and tag
   const physics = useMemo(() => {
     return new UnifiedTagPhysics({
       pullThreshold: 0.40,
-      onAssemblyExit,
+      onTriggerShutter,
     });
-  }, [onAssemblyExit]);
+  }, [onTriggerShutter]);
 
   useEffect(() => {
     if (onSceneReady) {
       onSceneReady();
     }
   }, [onSceneReady]);
+
+  // Pass upward retraction to physics if shutter is opening
+  useEffect(() => {
+    if (rollProgress > 0) {
+      // Retract tag slightly upwards alongside the lifting shutter
+      physics.setRetractProgress(rollProgress * 0.45);
+    }
+  }, [rollProgress, physics]);
 
   // Advance simulation on each animation frame
   useFrame((state, delta) => {
@@ -54,19 +64,19 @@ function TagSceneContent({
   return (
     <>
       {/* Balanced Softbox Studio Lighting */}
-      <ambientLight intensity={0.72} color="#ffffff" />
+      <ambientLight intensity={0.78} color="#ffffff" />
 
-      {/* Primary Key Directional Light: Casts soft realistic directional shadows onto backdrop */}
+      {/* Primary Key Directional Light: Casts crisp realistic directional shadows onto shutter slats */}
       <directionalLight
-        position={[2.4, 4.0, 3.2]}
-        intensity={1.85}
+        position={[2.4, 4.2, 3.2]}
+        intensity={1.9}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
         shadow-camera-far={12}
-        shadow-camera-left={-4}
-        shadow-camera-right={4}
+        shadow-camera-left={-5}
+        shadow-camera-right={5}
         shadow-camera-top={3.5}
         shadow-camera-bottom={-3.5}
         shadow-bias={-0.00015}
@@ -74,7 +84,7 @@ function TagSceneContent({
 
       {/* Edge & Rim Light: Grazes beveled paper edges and cotton cord */}
       <directionalLight
-        position={[-3.0, 2.2, -2.2]}
+        position={[-3.2, 2.4, -1.8]}
         intensity={1.25}
         color="#edf2ff"
       />
@@ -86,28 +96,22 @@ function TagSceneContent({
         color="#fff8f2"
       />
 
-      {/* --- THE CONNECTED 3D PHYSICAL INSTALLATION --- */}
-      <group position={[0, 0, 0]}>
-        {/* 1. Full-Width Solid Ivory Header Panel */}
-        <HeaderPanel physics={physics} />
+      {/* 1. Industrial Architectural Rolling Shutter */}
+      <RollingShutter rollProgress={rollProgress} />
 
-        {/* 2. Dynamic Braided Cotton Rope (Originates directly from header's underside bracket) */}
-        <TagString physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+      {/* 2. Interactive Hanging Fashion Tag Installation */}
+      <group position={[0, 0, 0]} visible={tagOpacity > 0.01}>
+        {/* Dynamic Braided Cotton Rope */}
+        <TagString physics={physics} onPullTrigger={() => physics.triggerShutter()} />
 
-        {/* 3. Ultra-Thin Fashion Tag (Hangs physically from lower end of rope) */}
-        <HangingTag physics={physics} onPullTrigger={() => physics.triggerBreakaway()} />
+        {/* Ultra-Thin Fashion Tag */}
+        <HangingTag physics={physics} onPullTrigger={() => physics.triggerShutter()} />
       </group>
 
-      {/* Studio Backdrop Wall receiving moving directional shadows from header, rope & tag */}
-      <mesh position={[0, 0.45, -0.65]} receiveShadow>
-        <planeGeometry args={[16, 16]} />
-        <shadowMaterial opacity={0.16} />
-      </mesh>
-
-      {/* Subtle floor contact shadow beneath the installation */}
+      {/* Floor contact shadow beneath the installation */}
       <ContactShadows
         position={[0, -1.35, 0]}
-        opacity={0.24}
+        opacity={0.20}
         scale={4.0}
         blur={2.4}
         far={2.2}
@@ -120,14 +124,15 @@ function TagSceneContent({
 
 /**
  * TagScene
- * R3F Canvas container calibrated for 38-44vh desktop presence,
- * balanced portrait aspect ratio, and studio cinematography.
+ * R3F Canvas container calibrated for studio cinematography and rolling shutter reveal.
  */
 export function TagScene({
-  onAssemblyExit,
+  rollProgress = 0,
+  onTriggerShutter,
   onPullProgress,
   onTensionChange,
   onSceneReady,
+  tagOpacity = 1,
 }) {
   return (
     <Canvas
@@ -146,10 +151,12 @@ export function TagScene({
       }}
     >
       <TagSceneContent
-        onAssemblyExit={onAssemblyExit}
+        rollProgress={rollProgress}
+        onTriggerShutter={onTriggerShutter}
         onPullProgress={onPullProgress}
         onTensionChange={onTensionChange}
         onSceneReady={onSceneReady}
+        tagOpacity={tagOpacity}
       />
     </Canvas>
   );

@@ -11,46 +11,32 @@ export const INTERACTION_STATES = {
   FREE_SWING: 'FREE_SWING',
   FREE_SPIN: 'FREE_SPIN',
   SETTLING: 'SETTLING',
-  ENTERING_HERO: 'ENTERING_HERO',
+  TRIGGERED: 'TRIGGERED',
   COMPLETED: 'COMPLETED',
 };
 
 /**
- * UnifiedTagPhysics (V8)
- * Physically Coupled Header + Rope + Tag Breakaway Simulation:
- * - Rigid full-width ivory header panel with realistic mass and inertia
+ * UnifiedTagPhysics (V9)
+ * Suspension Rope & Fashion Tag Physics with Deliberate Pull Trigger:
+ * - Fixed ceiling/housing bracket at (0, 1.66, -0.05)
  * - 12-particle dynamic Verlet rope with distance relaxation constraints
- * - Upper rope end (Node 0) is physically attached to the underside bracket of the header panel
- * - Lower rope end (Node 11) is physically attached to the fashion tag
- * - Initially, the header panel is held by a breakaway constraint at the ceiling
- * - User pulling the tag creates genuine physical tension
- * - Strong deliberate downward pull releases the breakaway constraint
- * - The entire assembly (Header + Rope + Tag) falls together under real gravity (g = -9.8 m/s²)
+ * - Ultra-thin rectangular fashion tag with 360° unconstrained rotation
+ * - Downward pull detection: measures displacement, angle, duration & velocity
+ * - Deliberate downward pull triggers the industrial rolling shutter opening sequence
  */
 export class UnifiedTagPhysics {
   constructor(options = {}) {
     this.pullThreshold = options.pullThreshold || 0.40;
-    this.onAssemblyExit = options.onAssemblyExit || null;
+    this.onTriggerShutter = options.onTriggerShutter || null;
     this.state = INTERACTION_STATES.INITIALIZING;
 
-    // --- 1. HEADER PANEL PHYSICAL RIGID-BODY ---
-    this.initialHeaderY = 1.64;
-    this.headerHeight = 0.34;
-    this.headerDepth = 0.04;
-    this.headerPos = new THREE.Vector3(0, this.initialHeaderY, 0);
-    this.headerVel = new THREE.Vector3(0, 0, 0);
-    this.headerRot = new THREE.Vector3(0, 0, 0);
-    this.headerRotVel = new THREE.Vector3(0, 0, 0);
-    this.headerMass = 2.4;
-    this.headerState = 'FIXED'; // 'FIXED', 'FALLING', 'EXITED'
-    this.hasTriggeredExit = false;
+    // --- 1. TOP ROLLER HOUSING ANCHOR BRACKET ---
+    this.initialAnchorY = 1.66;
+    this.anchorPos = new THREE.Vector3(0, this.initialAnchorY, -0.05);
 
-    // Underside attachment bracket in world coordinates
-    this.anchorWorld = new THREE.Vector3(0, this.initialHeaderY - this.headerHeight / 2, 0);
-
-    // --- 2. SUSPENSION ROPE PARTICLES ---
+    // --- 2. SUSPENSION ROPE PARTICLES (12 nodes) ---
     this.numNodes = 12;
-    this.totalRopeLength = 1.05; // Distance from header bracket to tag hole
+    this.totalRopeLength = 1.05; // Distance from bracket to tag hole
     this.segmentLength = this.totalRopeLength / (this.numNodes - 1);
     this.ropeDamping = 0.965;
     this.iterations = 12;
@@ -59,21 +45,21 @@ export class UnifiedTagPhysics {
     this.nodes = [];
     for (let i = 0; i < this.numNodes; i++) {
       const t = i / (this.numNodes - 1);
-      const y = this.anchorWorld.y - t * this.totalRopeLength;
+      const y = this.anchorPos.y - t * this.totalRopeLength;
       this.nodes.push({
         x: 0,
         y,
-        z: 0,
+        z: -0.05,
         oldX: 0,
         oldY: y,
-        oldZ: 0,
+        oldZ: -0.05,
         mass: i === this.numNodes - 1 ? 0.14 : 0.05,
       });
     }
 
     this.splinePoints = this.nodes.map(n => new THREE.Vector3(n.x, n.y, n.z));
 
-    // --- 3. FASHION TAG ANGULAR STATE ---
+    // --- 3. FASHION TAG ANGULAR STATE (360° rotational freedom) ---
     this.rotation = {
       x: 0.04,  // Pitch
       y: 0.22,  // Yaw (full 360° unconstrained rotation)
@@ -104,7 +90,7 @@ export class UnifiedTagPhysics {
       z: 2.2,
     };
 
-    // --- 4. INTERACTION STATE ---
+    // --- 4. INTERACTION & PULL TRIGGER STATE ---
     this.dragTarget = null;
     this.grabbedStringNode = -1;
     this.stringGrabPos = new THREE.Vector3();
@@ -122,31 +108,34 @@ export class UnifiedTagPhysics {
     this.maxPullY = 0;
     this.isTriggerReady = false;
     this.isLocked = false;
+    this.hasTriggered = false;
+
+    // Upward retraction offset when shutter is rolling
+    this.retractProgress = 0;
   }
 
   /**
-   * Releases the header breakaway constraint, allowing the entire assembly
-   * (Header -> Rope -> Tag) to accelerate downward under genuine gravity.
+   * Activates the retail rolling shutter mechanism upon intentional downward pull
    */
-  triggerBreakaway() {
-    if (this.headerState === 'FALLING') return;
+  triggerShutter() {
+    if (this.hasTriggered) return;
 
-    this.headerState = 'FALLING';
+    this.hasTriggered = true;
     this.dragTarget = null;
     this.isLocked = true;
-    this.state = INTERACTION_STATES.ENTERING_HERO;
+    this.state = INTERACTION_STATES.TRIGGERED;
 
-    // Impart initial downward impulse from the user's release pull
-    this.headerVel.y = -0.9;
-    this.headerRotVel.z = (Math.random() - 0.5) * 0.7;
-    this.headerRotVel.x = (Math.random() - 0.5) * 0.3;
+    // Slight natural release bounce on the tag
+    this.velocity.y += (Math.random() - 0.5) * 3.5;
+    this.velocity.z += (Math.random() - 0.5) * 2.0;
 
-    // Preserved angular velocity on the tag
-    this.velocity.y += (Math.random() - 0.5) * 4.0;
+    if (this.onTriggerShutter) {
+      this.onTriggerShutter();
+    }
   }
 
   /**
-   * Card grabbed at pointer position
+   * Pointer grabbed card
    */
   startCardDrag(clientX, clientY, localHitPoint = null) {
     if (this.isLocked) return;
@@ -180,7 +169,7 @@ export class UnifiedTagPhysics {
   }
 
   /**
-   * String grabbed at world hit position
+   * Pointer grabbed string
    */
   startStringDrag(hitPoint, clientX, clientY) {
     if (this.isLocked) return;
@@ -238,17 +227,17 @@ export class UnifiedTagPhysics {
       const screenDy = clientY - this.startClientY;
       this.screenDx = screenDx;
 
-      // Downward pull detection
-      if (screenDy > 10 && screenDy > Math.abs(screenDx) * 0.75) {
+      // Downward pull detection: deliberate pull downward
+      if (screenDy > 10 && screenDy > Math.abs(screenDx) * 0.70) {
         this.pullPixels = screenDy;
         this.currentPullY = Math.max(0, -deltaWorldY);
         this.maxPullY = Math.max(this.maxPullY, this.currentPullY);
 
         const pullDuration = performance.now() - this.dragStartTime;
-        // Breakaway condition reached!
+        // Activation threshold reached!
         if (this.currentPullY >= this.pullThreshold && pullDuration >= 80) {
           this.isTriggerReady = true;
-          this.triggerBreakaway();
+          this.triggerShutter();
           return;
         }
       } else {
@@ -298,7 +287,7 @@ export class UnifiedTagPhysics {
     this.isTriggerReady = false;
 
     if (wasDeliberatePull) {
-      this.triggerBreakaway();
+      this.triggerShutter();
       return true;
     }
 
@@ -329,59 +318,36 @@ export class UnifiedTagPhysics {
   }
 
   /**
+   * Set tag upward retraction progress (0 to 1) when shutter rolls up
+   */
+  setRetractProgress(p) {
+    this.retractProgress = CLAMP(p, 0, 1);
+  }
+
+  /**
    * Advances simulation step
    */
   step(deltaTime, totalTime) {
     const dt = Math.min(0.025, Math.max(0.004, deltaTime));
     const dtSq = dt * dt;
 
-    // --- A. STEP HEADER RIGID-BODY ---
-    if (this.headerState === 'FALLING') {
-      // True physical gravity integration
-      this.headerVel.y += this.gravity * dt;
-      this.headerPos.y += this.headerVel.y * dt;
-      this.headerPos.x += this.headerVel.x * dt;
-
-      // Angular momentum & slight tilt
-      this.headerRot.z += this.headerRotVel.z * dt;
-      this.headerRot.x += this.headerRotVel.x * dt;
-      this.headerRotVel.z *= 0.99;
-      this.headerRotVel.x *= 0.99;
-
-      // Check if complete assembly has fallen out of viewport
-      if (this.headerPos.y < -1.65 && !this.hasTriggeredExit) {
-        this.hasTriggeredExit = true;
-        this.headerState = 'EXITED';
-        if (this.onAssemblyExit) {
-          this.onAssemblyExit();
-        }
-      }
-    } else {
-      // While FIXED: respond with subtle physical strain if card is being pulled down
-      if (this.dragTarget === 'CARD' && this.currentPullY > 0) {
-        const strainY = Math.min(0.045, this.currentPullY * 0.08);
-        this.headerPos.y = this.initialHeaderY - strainY;
-        this.headerRot.z = (this.screenDx / 350) * 0.015;
-      } else {
-        // Return smoothly to rest position
-        this.headerPos.y += (this.initialHeaderY - this.headerPos.y) * 0.15;
-        this.headerRot.z += (0 - this.headerRot.z) * 0.15;
-      }
+    // Anchor position with subtle strain when card is being pulled down
+    let anchorY = this.initialAnchorY;
+    if (this.dragTarget === 'CARD' && this.currentPullY > 0) {
+      anchorY -= Math.min(0.035, this.currentPullY * 0.06);
     }
+    // Upward retraction when shutter opens
+    if (this.retractProgress > 0) {
+      anchorY += this.retractProgress * 1.2;
+    }
+    this.anchorPos.y = anchorY;
 
-    // --- B. UPDATE UNDERSIDE ANCHOR POINT ---
-    // The bracket is at (0, -headerHeight/2, 0) relative to the header center
-    const localBracket = new THREE.Vector3(0, -this.headerHeight / 2, 0);
-    const euler = new THREE.Euler(this.headerRot.x, this.headerRot.y, this.headerRot.z);
-    localBracket.applyEuler(euler);
-    this.anchorWorld.copy(this.headerPos).add(localBracket);
+    // Pin Node 0 of the cotton rope directly to the housing bracket
+    this.nodes[0].x = this.anchorPos.x;
+    this.nodes[0].y = this.anchorPos.y;
+    this.nodes[0].z = this.anchorPos.z;
 
-    // Pin Node 0 of the rope directly to the header bracket! ZERO GAP!
-    this.nodes[0].x = this.anchorWorld.x;
-    this.nodes[0].y = this.anchorWorld.y;
-    this.nodes[0].z = this.anchorWorld.z;
-
-    // --- C. STEP VERLET ROPE NODES (1 to numNodes - 1) ---
+    // Step Verlet rope nodes
     for (let i = 1; i < this.numNodes; i++) {
       if (this.dragTarget === 'STRING' && i === this.grabbedStringNode) continue;
       if (this.dragTarget === 'CARD' && i === this.numNodes - 1) continue;
@@ -400,12 +366,11 @@ export class UnifiedTagPhysics {
       node.z += vz;
     }
 
-    // --- D. SOLVE DISTANCE CONSTRAINTS (RELAXATION) ---
+    // Solve distance constraints (Relaxation iterations)
     for (let iter = 0; iter < this.iterations; iter++) {
-      // Re-pin upper anchor (Node 0) to the header bracket
-      this.nodes[0].x = this.anchorWorld.x;
-      this.nodes[0].y = this.anchorWorld.y;
-      this.nodes[0].z = this.anchorWorld.z;
+      this.nodes[0].x = this.anchorPos.x;
+      this.nodes[0].y = this.anchorPos.y;
+      this.nodes[0].z = this.anchorPos.z;
 
       for (let i = 0; i < this.numNodes - 1; i++) {
         const p1 = this.nodes[i];
@@ -449,15 +414,15 @@ export class UnifiedTagPhysics {
       }
     }
 
-    // --- E. UPDATE CATMULL-ROM SPLINE POINTS FOR ROPE MESH ---
+    // Update Catmull-Rom spline points for rope mesh
     for (let i = 0; i < this.numNodes; i++) {
       this.splinePoints[i].set(this.nodes[i].x, this.nodes[i].y, this.nodes[i].z);
     }
 
-    // --- F. STEP TAG ANGULAR ORIENTATION ---
+    // Step tag angular orientation
     let idleTorqueY = 0;
     let idleTorqueZ = 0;
-    if (!this.dragTarget && this.headerState !== 'FALLING') {
+    if (!this.dragTarget) {
       idleTorqueY = Math.sin(totalTime * 0.73) * 0.05 + Math.cos(totalTime * 1.37) * 0.025;
       idleTorqueZ = Math.sin(totalTime * 0.91) * 0.07 + Math.cos(totalTime * 1.63) * 0.025;
     }
@@ -492,8 +457,7 @@ export class UnifiedTagPhysics {
     const isTensionHigh = pullProgress >= 0.75;
 
     return {
-      headerPos: this.headerPos,
-      headerRot: this.headerRot,
+      anchorPos: this.anchorPos,
       cardPosition,
       rotation: this.rotation,
       splinePoints: this.splinePoints,
@@ -502,7 +466,6 @@ export class UnifiedTagPhysics {
       pullProgress,
       isTensionHigh,
       isTriggerReady: this.isTriggerReady,
-      headerState: this.headerState,
       state: this.state,
     };
   }

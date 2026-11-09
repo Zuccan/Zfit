@@ -1,17 +1,20 @@
 import gsap from 'gsap';
 
 /**
- * LoaderTransition (V8)
- * Coordinates the website-opening sequence when the physical assembly
- * (Header -> Rope -> Tag) falls out of the viewport under true gravity.
+ * LoaderTransition (V9)
+ * Orchestrates the Retail Rolling Shutter Opening Sequence:
+ * - Upward roll of 38 horizontal interlocking slats into top cylindrical roller housing
+ * - Progressive reveal of the ZFITs homepage hero behind the rising shutter from bottom to top
+ * - Clean handoff to homepage interactive state with zero falling panels
  */
 export const LoaderTransition = {
   /**
-   * Orchestrates the clean homepage hero reveal upon assembly exit
+   * Orchestrates the rolling shutter reveal sequence
    */
-  orchestrateAssemblyExit({
-    coverEl,
-    loaderOverlayEl,
+  orchestrateShutterOpening({
+    onUpdateRollProgress,
+    onUpdateTagOpacity,
+    onUpdateClipProgress,
     onHeroRevealReady,
     onComplete,
   }) {
@@ -20,109 +23,92 @@ export const LoaderTransition = {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (isReducedMotion) {
+      if (onUpdateRollProgress) onUpdateRollProgress(1);
+      if (onUpdateClipProgress) onUpdateClipProgress(1);
       if (onHeroRevealReady) onHeroRevealReady();
-      if (loaderOverlayEl) {
-        loaderOverlayEl.style.opacity = '0';
-        loaderOverlayEl.style.pointerEvents = 'none';
-      }
       if (onComplete) onComplete();
       return gsap.timeline();
     }
 
-    const tl = gsap.timeline();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (onComplete) onComplete();
+      },
+    });
 
-    // 1. Warm ivory satin cover curtain sweeps down as the physical assembly exits
-    if (coverEl) {
-      tl.fromTo(coverEl, {
-        y: '-100%',
-      }, {
-        y: '0%',
-        duration: 0.55,
-        ease: 'power3.inOut',
-      }, 0);
+    const state = {
+      progress: 0,
+      tagOpacity: 1,
+    };
 
-      // 2. When screen is blanketed by the ivory cover, prime homepage & hide 3D canvas
-      tl.add(() => {
-        if (onHeroRevealReady) onHeroRevealReady();
-        if (loaderOverlayEl) {
-          loaderOverlayEl.style.opacity = '0';
-          loaderOverlayEl.style.pointerEvents = 'none';
+    // 1. Roll shutter slats upward into top housing over 1.25s
+    tl.to(state, {
+      progress: 1.0,
+      duration: 1.25,
+      ease: 'power3.inOut',
+      onUpdate: () => {
+        if (onUpdateRollProgress) {
+          onUpdateRollProgress(state.progress);
         }
-      }, 0.52);
-
-      // 3. Cover sweeps downward off the screen, unveiling the dark luxury homepage hero
-      tl.to(coverEl, {
-        y: '100%',
-        duration: 0.65,
-        ease: 'power3.inOut',
-      }, 0.56);
-    } else {
-      tl.add(() => {
-        if (onHeroRevealReady) onHeroRevealReady();
-        if (loaderOverlayEl) {
-          loaderOverlayEl.style.opacity = '0';
-          loaderOverlayEl.style.pointerEvents = 'none';
+        if (onUpdateClipProgress) {
+          onUpdateClipProgress(state.progress);
         }
-      }, 0.2);
-    }
+      },
+    }, 0);
 
-    // 4. Final teardown
+    // 2. Tag smoothly ascends and fades as the bottom slat clears the center (around 0.55s - 0.95s)
+    tl.to(state, {
+      tagOpacity: 0,
+      duration: 0.40,
+      ease: 'power2.in',
+      onUpdate: () => {
+        if (onUpdateTagOpacity) {
+          onUpdateTagOpacity(state.tagOpacity);
+        }
+      },
+    }, 0.55);
+
+    // 3. Hero content begins staggered entrance as the shutter clears the main viewport (at 0.75s)
     tl.add(() => {
-      if (onComplete) onComplete();
-    }, 1.25);
+      if (onHeroRevealReady) {
+        onHeroRevealReady();
+      }
+    }, 0.75);
 
     return tl;
   },
 
   /**
-   * Fast Skip Transition (Keyboard Accessibility)
+   * Fast Skip Transition (Keyboard Accessibility - Escape key)
    */
   animateSkip({
-    coverEl,
-    loaderOverlayEl,
+    onUpdateRollProgress,
+    onUpdateClipProgress,
     onHeroRevealReady,
     onComplete,
   }) {
-    const isReducedMotion = typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (onComplete) onComplete();
+      },
+    });
 
-    if (isReducedMotion || !coverEl) {
-      if (onHeroRevealReady) onHeroRevealReady();
-      if (loaderOverlayEl) {
-        loaderOverlayEl.style.opacity = '0';
-        loaderOverlayEl.style.pointerEvents = 'none';
-      }
-      if (onComplete) onComplete();
-      return;
-    }
+    const state = { progress: 0 };
 
-    const tl = gsap.timeline();
-
-    tl.fromTo(coverEl, {
-      y: '-100%',
-    }, {
-      y: '0%',
-      duration: 0.32,
+    tl.to(state, {
+      progress: 1.0,
+      duration: 0.45,
       ease: 'power2.inOut',
+      onUpdate: () => {
+        if (onUpdateRollProgress) onUpdateRollProgress(state.progress);
+        if (onUpdateClipProgress) onUpdateClipProgress(state.progress);
+      },
     }, 0);
 
     tl.add(() => {
       if (onHeroRevealReady) onHeroRevealReady();
-      if (loaderOverlayEl) {
-        loaderOverlayEl.style.opacity = '0';
-        loaderOverlayEl.style.pointerEvents = 'none';
-      }
-    }, 0.32);
+    }, 0.25);
 
-    tl.to(coverEl, {
-      y: '100%',
-      duration: 0.32,
-      ease: 'power2.inOut',
-    }, 0.35);
-
-    tl.add(() => {
-      if (onComplete) onComplete();
-    }, 0.70);
+    return tl;
   },
 };

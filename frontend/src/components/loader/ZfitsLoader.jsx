@@ -1,24 +1,27 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { TagScene } from './TagScene';
 import { LoaderTransition } from './LoaderTransition';
 import './Loader.css';
 
 /**
- * ZfitsLoader (V8)
- * Physically Connected Installation:
- * - 3D Full-Width Ivory Header Panel
- * - Black Braided Cotton Suspension Rope connected to the header's underside bracket
- * - Ultra-Thin Black ZFITs Fashion Tag hanging beneath
- * - Pure editorial installation: No skip buttons, no drag hints, no UI clutter
- * - Downward pull releases header breakaway constraint -> entire assembly falls under real gravity
- * - Full-screen warm ivory cover transition reveals the ZFITs homepage hero
+ * ZfitsLoader (V9)
+ * Industrial Retail Rolling Shutter + Interactive Tag Trigger:
+ * - Hanging black ZFITs fashion tag suspended in front of closed architectural rolling shutter
+ * - 38 horizontal interlocking slats spanning the full viewport
+ * - Downward intentional pull on the tag activates the shutter mechanism
+ * - Shutter slats roll UPWARD and wrap into top concealed roller drum
+ * - Homepage hero is progressively revealed behind the rising shutter from bottom to top
+ * - Clean editorial design: zero instructions, zero skip buttons, zero scrollbars
  */
 export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
   const overlayRef = useRef(null);
-  const coverRef = useRef(null);
   const isTransitioningRef = useRef(false);
 
-  // Disable page scrolling during the interactive loader experience
+  const [rollProgress, setRollProgress] = useState(0);
+  const [clipProgress, setClipProgress] = useState(0);
+  const [tagOpacity, setTagOpacity] = useState(1);
+
+  // Disable page scrolling during the interactive loader
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -27,14 +30,15 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     };
   }, []);
 
-  // Called when the falling physical assembly exits past the bottom of the viewport under gravity
-  const handleAssemblyExit = useCallback(() => {
+  // Triggered when user pulls tag downward past activation threshold
+  const handleTriggerShutter = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
-    LoaderTransition.orchestrateAssemblyExit({
-      coverEl: coverRef.current,
-      loaderOverlayEl: overlayRef.current,
+    LoaderTransition.orchestrateShutterOpening({
+      onUpdateRollProgress: (p) => setRollProgress(p),
+      onUpdateClipProgress: (p) => setClipProgress(p),
+      onUpdateTagOpacity: (o) => setTagOpacity(o),
       onHeroRevealReady,
       onComplete,
     });
@@ -46,8 +50,8 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     isTransitioningRef.current = true;
 
     LoaderTransition.animateSkip({
-      coverEl: coverRef.current,
-      loaderOverlayEl: overlayRef.current,
+      onUpdateRollProgress: (p) => setRollProgress(p),
+      onUpdateClipProgress: (p) => setClipProgress(p),
       onHeroRevealReady,
       onComplete,
     });
@@ -63,28 +67,41 @@ export function ZfitsLoader({ onHeroRevealReady, onComplete }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyboardSkip]);
 
+  // Bottom edge percentage for clipping (100% when closed, 0% when fully open)
+  const bottomEdgePercent = Math.max(0, Math.min(100, (1 - clipProgress) * 100));
+
+  const clipStyle = clipProgress > 0
+    ? {
+        clipPath: `polygon(0 0, 100% 0, 100% ${bottomEdgePercent.toFixed(2)}%, 0 ${bottomEdgePercent.toFixed(2)}%)`,
+        WebkitClipPath: `polygon(0 0, 100% 0, 100% ${bottomEdgePercent.toFixed(2)}%, 0 ${bottomEdgePercent.toFixed(2)}%)`,
+      }
+    : undefined;
+
   return (
-    <>
-      <div
-        ref={overlayRef}
-        className="zfits-3d-loader-root"
-        role="dialog"
-        aria-label="ZFITs Entry Experience"
-      >
-        {/* Interactive 3D WebGL Canvas Layer */}
-        <div className="zfits-3d-canvas-wrap">
-          <TagScene onAssemblyExit={handleAssemblyExit} />
-        </div>
+    <div
+      ref={overlayRef}
+      className="zfits-3d-loader-root"
+      style={clipStyle}
+      role="dialog"
+      aria-label="ZFITs Boutique Entrance"
+    >
+      {/* Interactive 3D WebGL Canvas Layer */}
+      <div className="zfits-3d-canvas-wrap">
+        <TagScene
+          rollProgress={rollProgress}
+          onTriggerShutter={handleTriggerShutter}
+          tagOpacity={tagOpacity}
+        />
       </div>
 
-      {/* Full-Screen Warm Ivory & White Cover-Down Curtain */}
-      <div ref={coverRef} className="zfits-cover-curtain" aria-hidden="true">
-        <div className="cover-leading-glow" />
-        <div className="cover-brand-mark">
-          <span className="cover-brand-title">ZFITS</span>
-          <span className="cover-brand-sub">STUDIO</span>
-        </div>
-      </div>
-    </>
+      {/* Shutter bottom edge drop shadow cast onto homepage during upward roll */}
+      {clipProgress > 0 && clipProgress < 0.99 && (
+        <div
+          className="zfits-shutter-bottom-shadow"
+          style={{ top: `${bottomEdgePercent}%` }}
+          aria-hidden="true"
+        />
+      )}
+    </div>
   );
 }
